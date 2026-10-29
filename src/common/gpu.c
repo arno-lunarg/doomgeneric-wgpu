@@ -164,48 +164,6 @@ bool Gpu_Init(Gpu* gpu, void* hinstance, void* hwnd, uint32_t width, uint32_t he
         wgpuSurfaceCapabilitiesFreeMembers(caps);
     }
 
-    {
-        WGPUShaderModule module = Shader_Load(gpu->device, "triangle.wgsl");
-        
-        
-        WGPURenderPipelineDescriptor desc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
-        desc.label = Gpu_Str("MyWGPURenderPipelineDescriptor");
-        desc.vertex.module = module;
-        desc.vertex.entryPoint = Gpu_Str("vs_main");
-        desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
-        desc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
-        desc.primitive.frontFace = WGPUFrontFace_CCW;
-        desc.primitive.cullMode = WGPUCullMode_None;
-
-        desc.multisample.count = 1;
-        desc.multisample.mask = ~0u;
-        desc.multisample.alphaToCoverageEnabled = false;
-
-        WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
-        desc.fragment = &fragment;
-        fragment.module = module;
-        fragment.entryPoint = Gpu_Str("fs_main");
-        
-        WGPUBlendState blend = WGPU_BLEND_STATE_INIT;
-        blend.color.operation = WGPUBlendOperation_Add;
-        blend.color.srcFactor = WGPUBlendFactor_SrcAlpha;
-        blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
-        blend.alpha.operation = WGPUBlendOperation_Add;
-        blend.alpha.srcFactor = WGPUBlendFactor_Zero;
-        blend.alpha.dstFactor = WGPUBlendFactor_One;
-
-        WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
-        colorTarget.format = gpu->surfaceFormat;
-        colorTarget.blend = &blend;
-        colorTarget.writeMask = WGPUColorWriteMask_All;
-
-        fragment.targetCount = 1;
-        fragment.targets = &colorTarget;
-
-        gpu->render_pipeline = wgpuDeviceCreateRenderPipeline(gpu->device, &desc);
-
-        Shader_Free(module);
-    }
 
     return true;
 }
@@ -214,17 +172,20 @@ void Gpu_Resize(Gpu* gpu, uint32_t width, uint32_t height)
 {
     // TODO(§5) wgpuSurfaceConfigure. Skip 0x0 (minimized).
 
-    if (width == 0 && height == 0) {
+    if (width == 0 || height == 0) {
         return;
     }
 
     WGPUSurfaceConfiguration config = WGPU_SURFACE_CONFIGURATION_INIT;
     config.device = gpu->device;
     config.format = gpu->surfaceFormat;
-    config.usage = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding | WGPUTextureUsage_RenderAttachment;
+    config.usage = WGPUTextureUsage_RenderAttachment;
     config.width = width;
     config.height = height;
     config.presentMode = WGPUPresentMode_Immediate;
+
+    gpu->width = width;
+    gpu->height = height;
 
     wgpuSurfaceConfigure(gpu->surface, &config);
 }
@@ -272,14 +233,11 @@ void Gpu_EndFrame(Gpu* gpu, WGPUTextureView view)
     gpu->frameTexture = NULL;
 
     wgpuInstanceProcessEvents(gpu->instance);
-    // #CLAUDE is that useful here?
-    wgpuDeviceTick(gpu->device);
 }
 
 void Gpu_Shutdown(Gpu* gpu)
 {
     // TODO(§6) Release everything Gpu_Init created.
-    wgpuRenderPipelineRelease(gpu->render_pipeline);
     wgpuSurfaceUnconfigure(gpu->surface);
     wgpuDeviceRelease(gpu->device);
     wgpuAdapterRelease(gpu->adapter);

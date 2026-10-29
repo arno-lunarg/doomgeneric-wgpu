@@ -23,7 +23,6 @@ typedef struct Gpu
     uint32_t          width;
     uint32_t          height;
     WGPUTexture       frameTexture;  // swapchain image held between Gpu_BeginFrame and Gpu_EndFrame
-    WGPURenderPipeline render_pipeline;
 } Gpu;
 
 // backend: WGPUBackendType_Undefined lets Dawn choose (D3D12 on Windows).

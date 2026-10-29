@@ -227,8 +227,8 @@ footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--r
       <div>
         <p class="eyebrow">doomgeneric-wgpu · tutorial step 2 · Dawn v20261027.184652</p>
         <h1>Doom frame on the GPU</h1>
-        <p class="lede">Doom still renders on the CPU into a 320×200 buffer. You copy it into a texture every frame and stretch it over a 4:3 viewport with one triangle. New objects: texture, sampler, bind group layout, pipeline layout, bind group.</p>
-        <p class="lede">You write the TODOs in <code>src/doom/doomgeneric_wgpu.c</code>, a new <code>shaders/doom_blit.wgsl</code>, and a small refactor of <code>gpu.c</code>. The result must match the GDI blit pixel for pixel; §6 proves it.</p>
+        <p class="lede">Doom renders on the CPU into a 320×200 buffer. Upload it to a texture each frame; draw it into a 4:3 viewport with one triangle. New objects: texture, sampler, bind group layout, pipeline layout, bind group.</p>
+        <p class="lede">You write: the TODOs in <code>src/doom/doomgeneric_wgpu.c</code>, <code>shaders/doom_blit.wgsl</code>, a <code>gpu.c</code> refactor. Target: pixel-identical to the GDI blit (§6).</p>
       </div>
       <figure class="frame">
         <svg viewBox="0 0 2200 1520" role="img" aria-label="A 1280 by 720 window with a centered 960 by 720 viewport. One oversized triangle covers the viewport and is clipped to it.">
@@ -241,31 +241,31 @@ footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--r
           <text class="dg-text dg-dim" x="1340" y="300">uv (2,0)</text>
           <text class="dg-text dg-dim" x="210" y="1400">uv (0,2)</text>
         </svg>
-        <figcaption>§5: one triangle, three vertices from <code>vertex_index</code>. Only the part inside the viewport rasterizes; the black bars are the clear color.</figcaption>
+        <figcaption>§5: one triangle from <code>vertex_index</code>, clipped to the viewport. Bars: clear color.</figcaption>
       </figure>
     </header>
 
     <!-- §0 -->
     <section id="s0">
       <h2><span class="sec">§0</span>Setup</h2>
-      <p>Set <strong>doom_wgpu</strong> as startup project and press <span class="kbd">F5</span>. It runs from <code>wad/</code>, which now holds <code>DOOM.WAD</code> from your Steam install (Ultimate Doom). Doom's IWAD search tries <code>doom.wad</code> before <code>freedoom1.wad</code>. With every TODO empty, Doom runs and shows through the GDI fallback.</p>
+      <p>Startup project: <strong>doom_wgpu</strong>, <span class="kbd">F5</span>. Working directory <code>wad/</code> holds <code>DOOM.WAD</code> (Ultimate Doom, from Steam). IWAD search tries <code>doom.wad</code> before <code>freedoom1.wad</code>. With all TODOs empty, Doom runs on the GDI fallback.</p>
 
       <div class="table-wrap">
         <table>
           <thead><tr><th>File</th><th>Owner</th><th>What changed</th></tr></thead>
           <tbody>
             <tr><td><code>src/doom/doomgeneric_wgpu.c</code></td><td>You</td><td>TODO(§n) markers in <code>CreateFrameResources</code>, <code>DrawGpu</code>, <code>ShutdownGpu</code>, <code>DG_Init</code>, <code>DG_DrawFrame</code>. Provided: <code>ParseBackend</code> (<code>-vulkan</code>, <code>-d3d12</code>, <code>-d3d11</code>), <code>LetterboxRect</code>, and <code>-gdi</code>.</td></tr>
-            <tr><td><code>shaders/doom_blit.wgsl</code></td><td>You</td><td>New file, loaded at run time by <code>Shader_Load</code>.</td></tr>
+            <tr><td><code>shaders/doom_blit.wgsl</code></td><td>You</td><td>New. Loaded at run time by <code>Shader_Load</code>.</td></tr>
             <tr><td><code>src/common/gpu.c</code>, <code>src/step1_triangle/main.c</code></td><td>You</td><td>§1 moves the triangle pipeline out of <code>Gpu_Init</code>.</td></tr>
             <tr><td><code>tools/imgdiff.ps1</code></td><td>Provided</td><td>Compares two PNGs, prints differing pixels, writes a diff image.</td></tr>
-            <tr><td><code>tools/capture.ps1</code></td><td>Provided</td><td>New <code>-Client</code> switch: captures without title bar.</td></tr>
+            <tr><td><code>tools/capture.ps1</code></td><td>Provided</td><td><code>-Client</code>: client area only.</td></tr>
           </tbody>
         </table>
       </div>
 
       <div class="callout note">
         <span class="label"><code>-gdi</code></span>
-        <p>Keeps the old CPU blit. <code>DrawGpu</code> returns <code>false</code> until you implement it, and <code>DG_DrawFrame</code> then falls back to GDI. Once it returns <code>true</code>, the GPU path owns the window.</p>
+        <p>CPU blit, kept as reference. <code>DrawGpu</code> returns <code>false</code> until implemented; <code>DG_DrawFrame</code> then blits with GDI.</p>
       </div>
 
       <h3>Vulkan to WebGPU, this step</h3>
@@ -273,15 +273,15 @@ footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--r
         <table>
           <thead><tr><th>Vulkan</th><th>WebGPU C API</th><th>What changes</th></tr></thead>
           <tbody>
-            <tr><td><code>VkImage</code> + <code>VkDeviceMemory</code></td><td><code>WGPUTexture</code></td><td>No memory types, no binding, no tiling, no initial layout. Usage flags are the whole contract.</td></tr>
+            <tr><td><code>VkImage</code> + <code>VkDeviceMemory</code></td><td><code>WGPUTexture</code></td><td>No memory, tiling or layout. Usage flags only.</td></tr>
             <tr><td><code>VkImageView</code></td><td><code>WGPUTextureView</code></td><td><code>NULL</code> descriptor: whole texture, same format.</td></tr>
-            <tr><td>Staging buffer + <code>vkCmdCopyBufferToImage</code> + 2 barriers</td><td><code>wgpuQueueWriteTexture</code></td><td>One queue call. Dawn copies your bytes before returning.</td></tr>
+            <tr><td>Staging buffer + <code>vkCmdCopyBufferToImage</code> + 2 barriers</td><td><code>wgpuQueueWriteTexture</code></td><td>One queue call. Data copied before return.</td></tr>
             <tr><td><code>VkSampler</code></td><td><code>WGPUSampler</code></td><td>Same fields. Undefined means default.</td></tr>
-            <tr><td><code>VkDescriptorSetLayout</code></td><td><code>WGPUBindGroupLayout</code></td><td>One entry per binding; the binding type is the sub-struct you fill.</td></tr>
-            <tr><td><code>VkPipelineLayout</code></td><td><code>WGPUPipelineLayout</code></td><td>Or <code>layout = NULL</code> and reflect it from WGSL.</td></tr>
-            <tr><td><code>VkDescriptorPool</code> + <code>VkDescriptorSet</code> + <code>vkUpdateDescriptorSets</code></td><td><code>WGPUBindGroup</code></td><td>Created complete, immutable, no pool. A new resource means a new bind group.</td></tr>
+            <tr><td><code>VkDescriptorSetLayout</code></td><td><code>WGPUBindGroupLayout</code></td><td>One entry per binding. Type = the filled sub-struct.</td></tr>
+            <tr><td><code>VkPipelineLayout</code></td><td><code>WGPUPipelineLayout</code></td><td>Or <code>layout = NULL</code>: reflected from WGSL.</td></tr>
+            <tr><td><code>VkDescriptorPool</code> + <code>VkDescriptorSet</code> + <code>vkUpdateDescriptorSets</code></td><td><code>WGPUBindGroup</code></td><td>Immutable, no pool. New resource, new bind group.</td></tr>
             <tr><td><code>vkCmdBindDescriptorSets</code></td><td><code>wgpuRenderPassEncoderSetBindGroup</code></td><td>Per pass encoder. Dynamic offsets as in Vulkan.</td></tr>
-            <tr><td><code>vkCmdSetViewport</code></td><td><code>wgpuRenderPassEncoderSetViewport</code></td><td>Always dynamic. Reset to the full attachment at every pass begin.</td></tr>
+            <tr><td><code>vkCmdSetViewport</code></td><td><code>wgpuRenderPassEncoderSetViewport</code></td><td>Always dynamic. Reset to full attachment per pass.</td></tr>
           </tbody>
         </table>
       </div>
@@ -292,33 +292,37 @@ footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--r
       <h2><span class="sec">§1</span>Gpu in Doom</h2>
       <p class="goal">Clear the Doom window to black every frame through your <code>Gpu_*</code> functions.</p>
       <ul class="refs">
-        <li><span class="chip vk"><b>Vulkan</b>reusing your device/swapchain layer in a second app</span></li>
+        <li><span class="chip vk"><b>Vulkan</b>shared device/swapchain layer</span></li>
         <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Surfaces.html"><b>Header docs</b>Surfaces</a></li>
       </ul>
       <ul class="api"><li>Gpu_Init</li><li>Gpu_Resize</li><li>Gpu_BeginFrame</li><li>Gpu_EndFrame</li><li>Gpu_Shutdown</li><li>wgpuSurfaceConfigure</li></ul>
 
       <h3>Make <code>Gpu</code> generic</h3>
-      <p>Your <code>Gpu_Init</code> builds the triangle pipeline from <code>triangle.wgsl</code> and stores it in <code>Gpu.render_pipeline</code>. Doom links the same <code>gpu.c</code>. Move that block into <code>CreateTrianglePipeline</code> in <code>step1_triangle/main.c</code>, which already returns a pipeline to <code>DrawFrame</code>, and remove the field.</p>
-      <p>Three fixes in <code>Gpu_Resize</code> before a resizable game window relies on it:</p>
+      <p><code>Gpu_Init</code> builds the triangle pipeline into <code>Gpu.render_pipeline</code>; Doom links the same <code>gpu.c</code>. Move it to <code>CreateTrianglePipeline</code> in <code>step1_triangle/main.c</code>; remove the field.</p>
+      <p><code>Gpu_Resize</code> fixes:</p>
       <ol>
-        <li><code>width == 0 &amp;&amp; height == 0</code> should be <code>||</code>. A window dragged to zero height is W×0, and configuring 0 height is an error.</li>
-        <li>Store <code>gpu-&gt;width</code> and <code>gpu-&gt;height</code>. The <code>Outdated</code> path in <code>Gpu_BeginFrame</code> reconfigures with them; today they stay 0, so it never recovers.</li>
-        <li>Usage: only <code>RenderAttachment</code>. <code>StorageBinding</code> on a <code>BGRA8Unorm</code> surface needs the optional feature <code>WGPUFeatureName_BGRA8UnormStorage</code> (<code>webgpu.h:598</code>), which you do not request. Ask for what you use.</li>
+        <li><code>&amp;&amp;</code> → <code>||</code>. A W×0 window is possible; configuring it is an error.</li>
+        <li>Store <code>gpu-&gt;width</code>, <code>gpu-&gt;height</code>. The <code>Outdated</code> path in <code>Gpu_BeginFrame</code> reconfigures with them; they stay 0, so it never recovers.</li>
+        <li>Usage: <code>RenderAttachment</code> only. <code>StorageBinding</code> on <code>BGRA8Unorm</code> requires <code>WGPUFeatureName_BGRA8UnormStorage</code> (<code>webgpu.h:598</code>), not requested. <code>TextureBinding</code> is unused.</li>
       </ol>
       <div class="callout note">
         <span class="label">Your <code>#CLAUDE</code> question: <code>wgpuDeviceTick</code> in <code>Gpu_EndFrame</code></span>
-        <p>Redundant. In Dawn at the pinned commit, <code>wgpuInstanceProcessEvents</code> calls <code>InstanceBase::ProcessEvents</code>, which calls <code>APITick()</code> on every device before flushing callbacks (<code>src/dawn/native/Instance.cpp</code>). <code>wgpuDeviceTick</code> is Dawn-only; <code>ProcessEvents</code> is the portable call. Drop the tick.</p>
+        <p>Redundant. <code>wgpuInstanceProcessEvents</code> → <code>InstanceBase::ProcessEvents</code> → <code>APITick()</code> on every device (<code>src/dawn/native/Instance.cpp</code>, pinned commit). <code>wgpuDeviceTick</code> is Dawn-only. Remove it.</p>
       </div>
 
       <h3>Wire it into Doom</h3>
-      <p><code>DG_Init</code>: <code>Gpu_Init</code> on <code>g_platform.hinstance</code> / <code>hwnd</code> / size with <code>ParseBackend()</code>, then <code>atexit(ShutdownGpu)</code>. Doom leaves through <code>exit()</code> from several places (window close, quit menu, <code>I_Error</code>), so <code>atexit</code> is the one hook that always runs. <code>DG_DrawFrame</code>: on <code>g_platform.resized</code>, clear the flag and call <code>Gpu_Resize</code>. <code>DrawGpu</code>: begin frame, encoder, one pass clearing to black, end, finish, submit, end frame, <code>return true</code>.</p>
+      <ul>
+        <li><code>DG_Init</code>: <code>Gpu_Init</code> with <code>g_platform</code> handles, size, <code>ParseBackend()</code>; then <code>atexit(ShutdownGpu)</code>. Doom exits via <code>exit()</code> from several paths; <code>atexit</code> covers all.</li>
+        <li><code>DG_DrawFrame</code>: on <code>g_platform.resized</code>, clear the flag, <code>Gpu_Resize</code>.</li>
+        <li><code>DrawGpu</code>: begin frame, clear pass (black), submit, end frame, <code>return true</code>.</li>
+      </ul>
       <div class="callout gotcha"><span class="label">Traps</span>
         <ul>
-          <li>When <code>Gpu_BeginFrame</code> returns <code>NULL</code>, return <code>true</code> anyway. The flip-model swapchain owns the window once configured: a GDI blit for that frame would not show.</li>
-          <li>Keep Doom-specific objects out of <code>Gpu</code>. They live as statics in <code>doomgeneric_wgpu.c</code>; <code>gpu.c</code> stays shared with step 1.</li>
+          <li><code>Gpu_BeginFrame</code> returns <code>NULL</code>: still <code>return true</code>. A configured flip-model swapchain hides GDI output.</li>
+          <li>Doom objects stay out of <code>Gpu</code>: statics in <code>doomgeneric_wgpu.c</code>. <code>gpu.c</code> is shared with step 1.</li>
         </ul>
       </div>
-      <div class="callout check"><span class="label">Checkpoint</span><p>Black Doom window, no <code>[gpu]</code> errors. Resize and minimize: still no errors. <code>step1_triangle</code> still draws its triangle. <code>-gdi</code> still shows Doom.</p></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>Black window, no <code>[gpu]</code> errors, also after resize and minimize. <code>step1_triangle</code> and <code>-gdi</code> unchanged.</p></div>
       <details class="solution"><summary>Solution §1: gpu.c and step 1</summary><div class="body">
 <div class="code"><pre><code class="language-c">// gpu.c: Gpu_Init ends after the surface format block. No pipeline here.
 void Gpu_Resize(Gpu* gpu, uint32_t width, uint32_t height)
@@ -444,13 +448,13 @@ static void ShutdownGpu(void)
         <li><a class="chip" href="https://www.w3.org/TR/webgpu/#dictdef-gputexturedescriptor"><b>Spec</b>GPUTextureDescriptor</a></li>
       </ul>
       <ul class="api"><li>WGPUTextureDescriptor</li><li>wgpuDeviceCreateTexture</li><li>wgpuTextureCreateView</li><li>WGPUTextureFormat_BGRA8Unorm</li><li>WGPUTextureUsage_TextureBinding</li><li>WGPUTextureUsage_CopyDst</li></ul>
-      <p>One call, no memory. Dawn picks memory and layouts from the usage flags and validates every later use against them: <code>CopyDst</code> for the upload, <code>TextureBinding</code> for sampling. That is all this texture does.</p>
-      <p>Format: <code>DG_ScreenBuffer</code> is <code>uint32_t</code> <code>0x00RRGGBB</code>, so the bytes in memory are B, G, R, 0. That is <code>BGRA8Unorm</code>. <code>RGBA8Unorm</code> swaps red and blue. Not sRGB: Doom's palette is already display-encoded and the surface is <code>BGRA8Unorm</code>, so bytes pass through unchanged.</p>
-      <p><code>WGPU_TEXTURE_DESCRIPTOR_INIT</code> (<code>webgpu.h:4053</code>): <code>dimension</code> Undefined (means 2D), one mip, one sample, <code>size</code> = {0, 1, 1}. Set the width. Store the texture and a view (<code>wgpuTextureCreateView(texture, NULL)</code>: whole texture, same format) in statics; §4 binds the view.</p>
+      <p>No memory allocation. Dawn derives memory and layouts from the usage flags and validates every use against them. Here: <code>CopyDst</code> (upload), <code>TextureBinding</code> (sampling).</p>
+      <p>Format: <code>DG_ScreenBuffer</code> is <code>uint32_t</code> <code>0x00RRGGBB</code>, i.e. bytes B, G, R, 0: <code>BGRA8Unorm</code>. <code>RGBA8Unorm</code> swaps red and blue. No sRGB: the palette is display-encoded and the surface is <code>BGRA8Unorm</code>; bytes pass through.</p>
+      <p><code>WGPU_TEXTURE_DESCRIPTOR_INIT</code> (<code>webgpu.h:4053</code>): <code>dimension</code> Undefined (= 2D), 1 mip, 1 sample, <code>size</code> {0, 1, 1}: set the width. Keep texture and view in statics; <code>wgpuTextureCreateView(texture, NULL)</code> views the whole texture. §4 binds the view.</p>
       <div class="callout gotcha"><span class="label">Traps</span>
         <ul>
-          <li>Alpha is 0 in every pixel. Nothing may read it: no blending, and the shader writes alpha 1 (§4).</li>
-          <li>Textures start zero-filled. WebGPU guarantees it (Dawn clears lazily on first use). An unwritten texture samples black, never garbage.</li>
+          <li>Alpha is 0. Nothing may read it: no blending; the shader writes 1 (§4).</li>
+          <li>Textures are zero-initialized (Dawn clears lazily). An unwritten texture samples black, not garbage.</li>
         </ul>
       </div>
       <div class="callout check"><span class="label">Checkpoint</span><p>No errors. Still black.</p></div>
@@ -482,19 +486,19 @@ s_frameView    = wgpuTextureCreateView(s_frameTexture, NULL);</code></pre></div>
         <li><a class="chip" href="https://www.w3.org/TR/webgpu/#dom-gpuqueue-writetexture"><b>Spec</b>GPUQueue.writeTexture</a></li>
       </ul>
       <ul class="api"><li>wgpuQueueWriteTexture</li><li>WGPUTexelCopyTextureInfo</li><li>WGPUTexelCopyBufferLayout</li><li>WGPUExtent3D</li></ul>
-      <p>One call replaces the staging buffer, the <code>memcpy</code>, the copy command and both barriers (<code>webgpu.h:4947</code>). Two properties make it simple:</p>
+      <p>Replaces staging buffer, <code>memcpy</code>, copy command and barriers (<code>webgpu.h:4947</code>):</p>
       <ul>
-        <li><strong>The bytes are copied during the call.</strong> Doom may overwrite <code>DG_ScreenBuffer</code> as soon as it returns.</li>
-        <li><strong>It is ordered on the queue</strong>: after earlier submits, before later ones. Call it before the submit that samples the texture. If last frame's draw still reads the texture on the GPU, Dawn handles the hazard. No per-frame-in-flight staging ring, no double-buffered texture.</li>
+        <li><strong>Data copied during the call.</strong> <code>DG_ScreenBuffer</code> is reusable on return.</li>
+        <li><strong>Queue-ordered</strong>: after earlier submits, before later ones. Call it before the submit that samples. Dawn resolves the hazard with the previous frame's reads: no staging ring, no double buffering.</li>
       </ul>
-      <p>Layout: <code>bytesPerRow = 320 * 4 = 1280</code>, <code>rowsPerImage = 200</code>, size 256000 bytes. <code>WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT</code> leaves <code>bytesPerRow</code> as <code>WGPU_COPY_STRIDE_UNDEFINED</code>, which is only valid for a single row. <code>WGPU_TEXEL_COPY_TEXTURE_INFO_INIT</code> gives mip 0, origin 0, aspect All.</p>
+      <p>Layout: <code>bytesPerRow = 320 * 4 = 1280</code>, <code>rowsPerImage = 200</code>, 256000 bytes. <code>WGPU_TEXEL_COPY_BUFFER_LAYOUT_INIT</code>: <code>bytesPerRow</code> = <code>WGPU_COPY_STRIDE_UNDEFINED</code>, valid for one row only. <code>WGPU_TEXEL_COPY_TEXTURE_INFO_INIT</code>: mip 0, origin 0, aspect All.</p>
       <div class="callout gotcha"><span class="label">Traps</span>
         <ul>
-          <li>The 256-byte <code>bytesPerRow</code> alignment applies to buffer-to-texture copies recorded in an encoder, not to <code>writeTexture</code>. Here 1280 happens to be 5×256 anyway.</li>
-          <li>There is no encoder version of this call. Calling it after <code>wgpuQueueSubmit</code> shows each frame one frame late.</li>
+          <li>The 256-byte <code>bytesPerRow</code> alignment applies to encoder buffer-to-texture copies, not <code>writeTexture</code>. 1280 = 5×256 anyway.</li>
+          <li>Queue only; no encoder variant. Called after <code>wgpuQueueSubmit</code>: one frame of latency.</li>
         </ul>
       </div>
-      <div class="callout check"><span class="label">Checkpoint</span><p>No errors, still black: nothing samples the texture yet. A capture already shows Doom in it (§6).</p></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>No errors. Still black: nothing samples yet. A capture shows the texture filled (§6).</p></div>
       <details class="solution"><summary>Solution §3</summary><div class="body">
 <div class="code"><pre><code class="language-c">// DrawGpu, after Gpu_BeginFrame, before the encoder.
 WGPUTexelCopyTextureInfo dst = WGPU_TEXEL_COPY_TEXTURE_INFO_INIT;
@@ -522,7 +526,7 @@ wgpuQueueWriteTexture(s_gpu.queue, &amp;dst, DG_ScreenBuffer, DOOMGENERIC_RESX *
       <ul class="api"><li>WGPUSamplerDescriptor</li><li>wgpuDeviceCreateSampler</li><li>WGPUBindGroupLayoutEntry</li><li>wgpuDeviceCreateBindGroupLayout</li><li>WGPUPipelineLayoutDescriptor</li><li>wgpuDeviceCreatePipelineLayout</li><li>wgpuDeviceCreateRenderPipeline</li><li>WGPUBindGroupEntry</li><li>wgpuDeviceCreateBindGroup</li></ul>
 
       <h3>Shader: <code>shaders/doom_blit.wgsl</code></h3>
-      <p>No vertex buffer. Derive uv from <code>vertex_index</code>: vertices 0, 1, 2 get uv (0,0), (2,0), (0,2), and clip position (2u − 1, 1 − 2v). The triangle covers the viewport with uv 0…1 inside it, v pointing down like texture rows. The fragment stage samples and writes alpha 1.</p>
+      <p>No vertex buffer. From <code>vertex_index</code> 0, 1, 2: uv (0,0), (2,0), (0,2); clip position (2u − 1, 1 − 2v). Inside the viewport uv spans 0…1, v down like texture rows. Fragment: sample, alpha 1.</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>GLSL (Vulkan)</th><th>WGSL</th></tr></thead>
@@ -534,34 +538,34 @@ wgpuQueueWriteTexture(s_gpu.queue, &amp;dst, DG_ScreenBuffer, DOOMGENERIC_RESX *
           </tbody>
         </table>
       </div>
-      <p>Texture coordinates start top-left, as in Vulkan. Clip space is Y-up (step 1), hence <code>1 − 2v</code>.</p>
+      <p>Texture origin: top-left, as in Vulkan. Clip space: Y-up (step 1), hence <code>1 − 2v</code>.</p>
       <div class="callout gotcha"><span class="label">Uniformity</span>
-        <p><code>textureSample</code> takes implicit derivatives, so WGSL requires it in uniform control flow and checks this at compile time. GLSL leaves it undefined. Real Tint output for a sample inside <code>if (in.uv.x &gt; 0.5)</code>:</p>
+        <p><code>textureSample</code> uses implicit derivatives: WGSL requires uniform control flow and enforces it at compile time (GLSL: undefined behavior). Tint, sample inside <code>if (in.uv.x &gt; 0.5)</code>:</p>
         <div class="code"><pre><code class="nohighlight">error: 'textureSample' must only be called from uniform control flow
         return textureSample(frame, frameSampler, in.uv);
 note: control flow depends on possibly non-uniform value
     if (in.uv.x &gt; 0.5) {
 note: parameter 'in' of 'fs_main' may be non-uniform</code></pre></div>
-        <p>Sample first and branch on the result, or use <code>textureSampleLevel</code> / <code>textureLoad</code>.</p>
+        <p>Fix: sample before branching, or use <code>textureSampleLevel</code> / <code>textureLoad</code>.</p>
       </div>
 
       <h3>Sampler</h3>
-      <p>Nearest filtering, clamp to edge. In <code>WGPU_SAMPLER_DESCRIPTOR_INIT</code> (<code>webgpu.h:3867</code>) every mode is Undefined, which means the default: nearest and clamp. A <code>NULL</code> descriptor gives the same sampler; set the fields anyway so the intent is visible. The window is 3× wide and 3.6× tall, so rows come out 3 or 4 pixels high, exactly like GDI's <code>COLORONCOLOR</code>. Try linear once to see the difference.</p>
+      <p>Nearest, clamp to edge. <code>WGPU_SAMPLER_DESCRIPTOR_INIT</code> (<code>webgpu.h:3867</code>): all modes Undefined = default = nearest, clamp; a <code>NULL</code> descriptor is equivalent. Set them explicitly anyway. Scale is 3× by 3.6×: rows are 3 or 4 pixels, as with GDI <code>COLORONCOLOR</code>. Try linear once.</p>
 
       <h3>Layouts</h3>
-      <p>Two bindings, both visible to the fragment stage: 0 = texture (sample type Float, view dimension 2D), 1 = sampler (Filtering). Then a pipeline layout with that one bind group layout, and the pipeline from step 1 with <code>layout</code> set and your new shader.</p>
-      <div class="callout gotcha"><span class="label">Trap: the entry's binding type is the sub-struct you fill</span>
-        <p><code>WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT</code> (<code>webgpu.h:3457</code>) zero-fills <code>buffer</code>, <code>sampler</code>, <code>texture</code>, <code>storageTexture</code>. Zero is <code>BindingNotUsed</code>. Fill exactly one, and set <code>visibility</code> (default <code>None</code>). The sub-struct <code>_INIT</code> macros use <code>Undefined</code> instead, meaning "default" (Float, 2D, Filtering). Forget the sampler's <code>type</code> and you get:</p>
+      <p>Two bindings, fragment visibility: 0 = texture (Float, 2D), 1 = sampler (Filtering). Pipeline layout: that one bind group layout. Pipeline: as in step 1, plus <code>layout</code> and the new shader.</p>
+      <div class="callout gotcha"><span class="label">Trap: binding type = filled sub-struct</span>
+        <p><code>WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT</code> (<code>webgpu.h:3457</code>) zero-fills <code>buffer</code>, <code>sampler</code>, <code>texture</code>, <code>storageTexture</code>; 0 = <code>BindingNotUsed</code>. Fill exactly one; set <code>visibility</code> (default <code>None</code>). Sub-struct <code>_INIT</code> macros use <code>Undefined</code> = default (Float, 2D, Filtering). Sampler <code>type</code> left unset:</p>
         <div class="code"><pre><code class="nohighlight">[gpu] Error (type 2): BindGroupLayoutEntry had none of buffer, sampler, texture, storageTexture, texelBuffer, or externalTexture set
  - While validating entries[1]
  - While validating [BindGroupLayoutDescriptor ""Doom frame layout""]
  - While calling [Device "MyGpu"].CreateBindGroupLayout([BindGroupLayoutDescriptor ""Doom frame layout""]).</code></pre></div>
       </div>
-      <div class="callout note"><span class="label">Auto layout</span><p><code>layout = NULL</code> reflects the layout from WGSL, and <code>wgpuRenderPipelineGetBindGroupLayout(pipeline, 0)</code> (<code>webgpu.h:5005</code>) returns it. Fine for one pipeline, but that layout belongs to its pipeline: bind groups made from it do not work with another pipeline, even an identical one. Write the explicit one here; it is what you will share between pipelines in step 3.</p></div>
+      <div class="callout note"><span class="label">Auto layout</span><p><code>layout = NULL</code> reflects it from WGSL; <code>wgpuRenderPipelineGetBindGroupLayout(pipeline, 0)</code> (<code>webgpu.h:5005</code>) returns it. Such a layout is tied to its pipeline: its bind groups are incompatible with any other pipeline, even an identical one. Use explicit layouts; step 3 shares them across pipelines.</p></div>
 
       <h3>Bind group</h3>
-      <p>Entries: binding 0 → <code>textureView</code>, binding 1 → <code>sampler</code>. No pool, no update call: the bind group is complete and immutable at creation. It holds references to the view and sampler; the pipeline holds its layouts. Release the shader module, pipeline layout and bind group layout right after creating the pipeline and bind group.</p>
-      <div class="callout check"><span class="label">Checkpoint</span><p>No errors at startup. Still black: nothing draws yet.</p></div>
+      <p>Entries: 0 → <code>textureView</code>, 1 → <code>sampler</code>. Immutable at creation; no pool, no update. The bind group references view and sampler; the pipeline references its layouts. Release shader module, pipeline layout and bind group layout after creation.</p>
+      <div class="callout check"><span class="label">Checkpoint</span><p>No errors. Still black: no draw yet.</p></div>
       <details class="solution"><summary>Solution §4: doom_blit.wgsl</summary><div class="body">
 <div class="code"><pre><code class="language-rust">// Doom's 320x200 frame, stretched over the viewport by one fullscreen triangle.
 
@@ -674,15 +678,15 @@ wgpuBindGroupLayoutRelease(bindGroupLayout);</code></pre></div>
         <li><a class="chip" href="https://www.w3.org/TR/webgpu/#dom-gpurenderpassencoder-setviewport"><b>Spec</b>setViewport</a></li>
       </ul>
       <ul class="api"><li>wgpuRenderPassEncoderSetViewport</li><li>wgpuRenderPassEncoderSetPipeline</li><li>wgpuRenderPassEncoderSetBindGroup</li><li>wgpuRenderPassEncoderDraw</li></ul>
-      <p>Inside the pass: <code>LetterboxRect</code> gives x, y, w, h in client pixels (1280×720 → 160, 0, 960, 720). WebGPU viewport coordinates start top-left with y down, like Vulkan with a positive height; Dawn adds the flip on its Vulkan backend. Depth range 0 to 1. Then pipeline, bind group 0 with no dynamic offsets, <code>Draw(3, 1, 0, 0)</code>. Clipping to the viewport trims the oversized triangle; the clear color fills the bars.</p>
-      <p>Finish <code>ShutdownGpu</code>: release bind group, pipeline, sampler, view, texture, then <code>Gpu_Shutdown</code>.</p>
+      <p>In the pass: viewport from <code>LetterboxRect</code> (client pixels; 1280×720 → 160, 0, 960, 720), depth 0–1. Origin top-left, y down, as Vulkan with positive height; Dawn flips on Vulkan. Then pipeline, bind group 0 (no dynamic offsets), <code>Draw(3, 1, 0, 0)</code>. Clipping trims the triangle; the clear color fills the bars.</p>
+      <p><code>ShutdownGpu</code>: release bind group, pipeline, sampler, view, texture; then <code>Gpu_Shutdown</code>.</p>
       <div class="callout gotcha"><span class="label">Traps</span>
         <ul>
-          <li>The viewport must lie inside the render target. <code>LetterboxRect</code> reads <code>g_platform</code>, so <code>Gpu_Resize</code> must run before <code>DrawGpu</code> in the same frame, or a shrinking window yields a viewport larger than the swapchain texture and a validation error.</li>
-          <li>Viewport is per pass: every <code>BeginRenderPass</code> resets it to the full attachment.</li>
+          <li>The viewport must fit the render target. <code>LetterboxRect</code> reads <code>g_platform</code>: call <code>Gpu_Resize</code> before <code>DrawGpu</code>, else a shrinking window gives an oversized viewport and a validation error.</li>
+          <li>Viewport is per pass; <code>BeginRenderPass</code> resets it.</li>
         </ul>
       </div>
-      <div class="callout check"><span class="label">Checkpoint</span><p>Doom plays on D3D12 and with <code>-vulkan</code>. Resize: bars follow, picture stays 4:3. §6 checks it against <code>-gdi</code>.</p></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>Doom runs on D3D12 and <code>-vulkan</code>. Resize keeps 4:3. §6 compares with <code>-gdi</code>.</p></div>
       <details class="solution"><summary>Solution §5</summary><div class="body">
 <div class="code"><pre><code class="language-c">// DrawGpu, between BeginRenderPass and End.
 int x, y, w, h;
@@ -707,23 +711,23 @@ wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);</code></pre></div>
     <!-- §6 -->
     <section id="s6">
       <h2><span class="sec">§6</span>Debugging toolkit</h2>
-      <p class="goal">Prove the GPU path is pixel-exact, then break it twice and catch each error where it happens.</p>
+      <p class="goal">Prove pixel equality; break it twice; catch each error at its source.</p>
 
       <h3>Pixel diff against <code>-gdi</code></h3>
-      <p>Capture both paths on the title screen (it stays up a few seconds), client area only, and compare:</p>
+      <p>Capture both paths on the title screen (a few seconds), client area only; compare:</p>
       <div class="code"><pre><code class="nohighlight">pwsh -File tools/capture.ps1 -Exe build\Debug\doom_wgpu.exe -WorkDir wad -Wait 3 -Client -Out gpu.png
 pwsh -File tools/capture.ps1 -Exe build\Debug\doom_wgpu.exe -WorkDir wad -Wait 3 -Client -Out gdi.png -Args -gdi
 pwsh -File tools/imgdiff.ps1 -A gpu.png -B gdi.png -Out diff.png</code></pre></div>
-      <p>The reference solution prints <code>Identical (960x720)</code> on D3D12 and on <code>-vulkan</code>. Without <code>-Client</code>, the title bar differs (focus state) and thousands of pixels mismatch in rows 0–30. If yours differs inside the picture, open <code>diff.png</code>: red pixels mark the mismatches. Linear filtering, an off-by-one viewport, or swapped red/blue each leave a distinct pattern.</p>
+      <p>Reference solution: <code>Identical (960x720)</code> on D3D12 and <code>-vulkan</code>. Without <code>-Client</code>, rows 0–30 differ (title bar focus state). Mismatches in the picture show red in <code>diff.png</code>; linear filtering, an off-by-one viewport and swapped red/blue each leave a distinct pattern.</p>
 
       <h3>Read a usage error</h3>
-      <p>Remove <code>CopyDst</code> from the texture usage. Real output, repeated every frame:</p>
+      <p>Remove <code>CopyDst</code> from the texture usage. Output, every frame:</p>
       <div class="code"><pre><code class="nohighlight">[gpu] Error (type 2): Usage (TextureUsage::TextureBinding) of [Texture "Doom frame"] does not include TextureUsage::CopyDst.
  - While calling [Queue "MyQueue"].WriteTexture([TexelCopyTextureInfo texture: [Texture "Doom frame"], mipLevel: 0, origin: [Origin3D x:0, y:0, z:0], aspect: TextureAspect::Undefined], (256000 bytes), [TexelCopyBufferLayout offset:0, bytesPerRow:1280, rowsPerImage:200], [Extent3D width:320, height:200, depthOrArrayLayers:1])</code></pre></div>
-      <p>The window stays black: the texture is still valid and zero-filled; only each write fails. Compare with the bind group layout error in §4, where one invalid object poisons the layout, pipeline, bind group and every frame's command buffer.</p>
+      <p>Window stays black: the texture is valid and zero-filled; only the writes fail. Contrast §4: one invalid layout invalidates pipeline layout, pipeline, bind group and every command buffer.</p>
 
       <h3>Catch errors at the source with an error scope</h3>
-      <p>Bracket <code>CreateFrameResources()</code> in <code>DG_Init</code> with a validation error scope and pop it synchronously: <code>wgpuDevicePushErrorScope</code> with <code>WGPUErrorFilter_Validation</code>, then <code>wgpuDevicePopErrorScope</code> with a <code>WGPUPopErrorScopeCallbackInfo</code> in <code>WaitAnyOnly</code> mode and <code>wgpuInstanceWaitAny</code> on its future (same pattern as the adapter request). Callback type: <code>WGPUPopErrorScopeCallback</code>, <code>webgpu.h:1325</code>. With the sampler type removed again, real output:</p>
+      <p>Wrap <code>CreateFrameResources()</code> in a validation scope, popped synchronously: <code>wgpuDevicePushErrorScope</code> (<code>WGPUErrorFilter_Validation</code>), then <code>wgpuDevicePopErrorScope</code> in <code>WaitAnyOnly</code> mode and <code>wgpuInstanceWaitAny</code> on its future, as for the adapter. Callback: <code>WGPUPopErrorScopeCallback</code> (<code>webgpu.h:1325</code>). Sampler <code>type</code> removed again:</p>
       <div class="code"><pre><code class="nohighlight">[scope CreateFrameResources] BindGroupLayoutEntry had none of buffer, sampler, texture, storageTexture, texelBuffer, or externalTexture set
  - While validating entries[1]
  - While validating [BindGroupLayoutDescriptor ""Doom frame layout""]
@@ -731,7 +735,7 @@ pwsh -File tools/imgdiff.ps1 -A gpu.png -B gdi.png -Out diff.png</code></pre></d
 
 [gpu] Error (type 2): [Invalid RenderPipeline "Doom blit pipeline"] is invalid due to a previous error.
  - While encoding [RenderPassEncoder "Doom blit pass"].SetPipeline([Invalid RenderPipeline "Doom blit pipeline"]).</code></pre></div>
-      <p>A scope keeps the first error and swallows the rest of what it captured: the pipeline layout, pipeline and bind group cascade is gone. The per-frame errors outside the scope still reach the uncaptured callback. A breakpoint in the pop callback, or a check right after the wait, lands next to the faulty creation code instead of at the next present.</p>
+      <p>A scope keeps its first error and discards the rest: the creation cascade is gone. Per-frame errors outside it still reach the uncaptured callback. A breakpoint in the pop callback stops next to the faulty code, not at the next present.</p>
       <details class="solution"><summary>Solution §6: error scope helper</summary><div class="body">
 <div class="code"><pre><code class="language-c">static void OnPopErrorScope(WGPUPopErrorScopeStatus status, WGPUErrorType type, WGPUStringView message,
                             void* userdata1, void* userdata2)
@@ -761,23 +765,23 @@ PopErrorScope("CreateFrameResources");</code></pre></div>
       </div></details>
 
       <h3>RenderDoc: where did <code>writeTexture</code> go?</h3>
-      <p>Capture a frame with <code>-vulkan</code>. Things to find:</p>
+      <p>Capture a frame with <code>-vulkan</code>. Find:</p>
       <ul>
-        <li>The copy Dawn records for <code>wgpuQueueWriteTexture</code>: a buffer-to-image copy from Dawn's staging memory, with its barriers, ahead of your render pass.</li>
-        <li>The descriptor set Dawn built from your bind group: one sampled image, one sampler, at the bindings you chose.</li>
-        <li>The frame texture in the texture viewer, labelled <code>Doom frame</code>. Alpha is 0, so the viewer may show it transparent until you disable the alpha channel.</li>
+        <li>The <code>wgpuQueueWriteTexture</code> copy: buffer-to-image from Dawn's staging memory, with barriers, before your pass.</li>
+        <li>The descriptor set from your bind group: sampled image, sampler, your bindings.</li>
+        <li><code>Doom frame</code> in the texture viewer. Alpha is 0: disable the alpha channel to see it.</li>
         <li>The viewport: your letterbox rect, with Dawn's Y flip.</li>
       </ul>
 
       <h3>Tint: separate texture and sampler</h3>
       <div class="code"><pre><code class="nohighlight">third_party\dawn\bin\tint.exe --format hlsl --entry-point fs_main shaders\doom_blit.wgsl</code></pre></div>
-      <p>Real output, excerpt. The bindings become separate D3D registers, and <code>textureSample</code> becomes <code>Sample</code>:</p>
+      <p>Excerpt: separate <code>t</code> / <code>s</code> registers; <code>textureSample</code> → <code>Sample</code>.</p>
       <div class="code"><pre><code class="language-c">Texture2D&lt;float4&gt; frame : register(t0);
 SamplerState frameSampler : register(s1);
 float4 fs_main_inner(VsOut v) {
   return float4(frame.Sample(frameSampler, v.uv).xyz, 1.0f);
 }</code></pre></div>
-      <div class="callout check"><span class="label">Checkpoint</span><p><code>imgdiff</code> prints <code>Identical</code> on both backends, you have read both errors, and an error scope caught one at its source. Ask for step 2b: palette on the GPU (<code>r8uint</code> indices, 256×1 palette, <code>textureLoad</code>).</p></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p><code>imgdiff</code>: <code>Identical</code> on both backends. Both errors read; one caught by a scope. Next: step 2b, palette on the GPU (<code>r8uint</code> indices, 256×1 palette, <code>textureLoad</code>).</p></div>
     </section>
 
     <footer>

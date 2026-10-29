@@ -16,8 +16,48 @@
 static WGPURenderPipeline CreateTrianglePipeline(Gpu* gpu)
 {
     // TODO(§6) Shader module, then render pipeline targeting gpu->surfaceFormat.
-    (void)gpu;
-    return NULL;
+    
+    WGPUShaderModule module = Shader_Load(gpu->device, "triangle.wgsl");
+        
+    WGPURenderPipelineDescriptor desc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+    desc.label = Gpu_Str("MyWGPURenderPipelineDescriptor");
+    desc.vertex.module = module;
+    desc.vertex.entryPoint = Gpu_Str("vs_main");
+    desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    desc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    desc.primitive.frontFace = WGPUFrontFace_CCW;
+    desc.primitive.cullMode = WGPUCullMode_None;
+
+    desc.multisample.count = 1;
+    desc.multisample.mask = ~0u;
+    desc.multisample.alphaToCoverageEnabled = false;
+
+    WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
+    desc.fragment = &fragment;
+    fragment.module = module;
+    fragment.entryPoint = Gpu_Str("fs_main");
+        
+    WGPUBlendState blend = WGPU_BLEND_STATE_INIT;
+    blend.color.operation = WGPUBlendOperation_Add;
+    blend.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend.alpha.operation = WGPUBlendOperation_Add;
+    blend.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend.alpha.dstFactor = WGPUBlendFactor_One;
+
+    WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
+    colorTarget.format = gpu->surfaceFormat;
+    colorTarget.blend = &blend;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+
+    fragment.targetCount = 1;
+    fragment.targets = &colorTarget;
+
+    WGPURenderPipeline render_pipeline = wgpuDeviceCreateRenderPipeline(gpu->device, &desc);
+
+    Shader_Free(module);
+
+    return render_pipeline;
 }
 
 static void DrawFrame(Gpu* gpu, WGPURenderPipeline pipeline, WGPUTextureView target)
@@ -52,8 +92,6 @@ static void DrawFrame(Gpu* gpu, WGPURenderPipeline pipeline, WGPUTextureView tar
     
     wgpuCommandBufferRelease(cb);
     wgpuCommandEncoderRelease(cmd_encoder);
-    // TODO(§6) Set `pipeline`, draw 3 vertices.
-    (void)gpu, (void)pipeline, (void)target;
 }
 
 // -vulkan / -d3d12 / -d3d11 on the command line picks the Dawn backend.

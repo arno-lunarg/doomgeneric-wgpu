@@ -821,7 +821,7 @@ void D_SetGameDescription(void)
         {
             // Ultimate Doom
 
-            gamedescription = GetGameName("The Ultimate DOOM");
+            gamedescription = GetGameName("LunarG Hackathon");
         }
         else if (gamemode == registered)
         {
