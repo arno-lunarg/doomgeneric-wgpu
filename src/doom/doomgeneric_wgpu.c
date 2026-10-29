@@ -15,6 +15,7 @@
 
 #include "gpu.h"
 #include "platform_win32.h"
+#include "shader.h"
 
 // Doom ran 320x200 on 4:3 CRTs: pixels are 20% taller than wide.
 #define DISPLAY_ASPECT (4.0f / 3.0f)
@@ -34,6 +35,8 @@ static WGPUTexture s_frame_texture;
 static WGPUTextureView s_frame_texture_view;
 static WGPURenderPipeline s_render_pipeline;
 
+static WGPUSampler s_sampler;
+static WGPUBindGroup s_bindGroup;
 // TODO(§2, §4) Frame texture, view, sampler, bind group, pipeline.
 
 static unsigned char ConvertToDoomKey(unsigned int vk)
@@ -126,6 +129,84 @@ static WGPUBackendType ParseBackend(void)
     return WGPUBackendType_Vulkan;
 }
 
+static WGPURenderPipeline CreatePipeline()
+{
+    // TODO(§6) Shader module, then render pipeline targeting gpu->surfaceFormat.
+    
+    WGPUShaderModule module = Shader_Load(s_gpu.device, "doom_blit.wgsl");
+        
+    WGPURenderPipelineDescriptor desc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+    desc.label = Gpu_Str("MyWGPURenderPipelineDescriptor");
+    desc.vertex.module = module;
+    desc.vertex.entryPoint = Gpu_Str("vs_main");
+    desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    desc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    desc.primitive.frontFace = WGPUFrontFace_CCW;
+    desc.primitive.cullMode = WGPUCullMode_None;
+
+    desc.multisample.count = 1;
+    desc.multisample.mask = ~0u;
+    desc.multisample.alphaToCoverageEnabled = false;
+
+    WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
+    desc.fragment = &fragment;
+    fragment.module = module;
+    fragment.entryPoint = Gpu_Str("fs_main");
+        
+    WGPUBlendState blend = WGPU_BLEND_STATE_INIT;
+    blend.color.operation = WGPUBlendOperation_Add;
+    blend.color.srcFactor = WGPUBlendFactor_SrcAlpha;
+    blend.color.dstFactor = WGPUBlendFactor_OneMinusSrcAlpha;
+    blend.alpha.operation = WGPUBlendOperation_Add;
+    blend.alpha.srcFactor = WGPUBlendFactor_Zero;
+    blend.alpha.dstFactor = WGPUBlendFactor_One;
+
+    WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
+    colorTarget.format = s_gpu.surfaceFormat;
+    colorTarget.blend = &blend;
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+
+    fragment.targetCount = 1;
+    fragment.targets = &colorTarget;
+
+    WGPURenderPipeline render_pipeline = wgpuDeviceCreateRenderPipeline(s_gpu.device, &desc);
+
+    WGPUBindGroupLayout layout = wgpuRenderPipelineGetBindGroupLayout(render_pipeline, 0);
+
+    WGPUSamplerDescriptor samplerDesc = WGPU_SAMPLER_DESCRIPTOR_INIT;
+    samplerDesc.addressModeU = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeV = WGPUAddressMode_ClampToEdge;
+    samplerDesc.addressModeW = WGPUAddressMode_ClampToEdge;
+    samplerDesc.magFilter = WGPUFilterMode_Linear;
+    samplerDesc.minFilter = WGPUFilterMode_Linear;
+    samplerDesc.mipmapFilter = WGPUMipmapFilterMode_Linear;
+    samplerDesc.lodMinClamp = 0.0f;
+    samplerDesc.lodMaxClamp = 1.0f;
+    samplerDesc.compare = WGPUCompareFunction_Undefined;
+    samplerDesc.maxAnisotropy = 1;
+    s_sampler = wgpuDeviceCreateSampler(s_gpu.device, &samplerDesc);
+
+    WGPUBindGroupEntry entries[2];
+    entries[0] = WGPU_BIND_GROUP_ENTRY_INIT;
+    entries[0].binding = 0;
+    entries[0].textureView = s_frame_texture_view;
+    entries[1] = WGPU_BIND_GROUP_ENTRY_INIT;
+    entries[1].binding = 1;
+    entries[1].sampler = s_sampler;
+
+    WGPUBindGroupDescriptor bindGroupDesc = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+    bindGroupDesc.label = Gpu_Str("Doom frame bind group");
+    bindGroupDesc.layout = layout;
+    bindGroupDesc.entryCount = ARRAY_SIZE(entries);
+    bindGroupDesc.entries = entries;
+
+    s_bindGroup = wgpuDeviceCreateBindGroup(s_gpu.device, &bindGroupDesc);
+
+    Shader_Free(module);
+    wgpuBindGroupLayoutRelease(layout);
+    return render_pipeline;
+}
+
 static void CreateFrameResources(void)
 {
     // TODO(§2) Frame texture and its view.
@@ -184,6 +265,13 @@ static bool DrawGpu(void)
 
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(cmd_encoder, &passDesc);
 
+    int x, y, w, h;
+    LetterboxRect(&x, &y, &w, &h);
+    wgpuRenderPassEncoderSetViewport(pass, (float)x, (float)y, (float)w, (float)h, 0.0f, 1.0f);
+    wgpuRenderPassEncoderSetPipeline(pass, s_render_pipeline);
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, s_bindGroup, 0, NULL);
+    wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
+
     wgpuRenderPassEncoderEnd(pass);
 
     WGPUCommandBufferDescriptor cb_desc = WGPU_COMMAND_BUFFER_DESCRIPTOR_INIT;
@@ -231,6 +319,8 @@ void DG_Init(void)
     Gpu_Init(&s_gpu, g_platform.hinstance, g_platform.hwnd, g_platform.width, g_platform.height, ParseBackend());
 
     CreateFrameResources();
+
+    s_render_pipeline = CreatePipeline();
     I_AtExit(ShutdownGpu, true);
 }
 
