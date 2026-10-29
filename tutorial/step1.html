@@ -1,0 +1,913 @@
+<title>WebGPU First Triangle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: sticky contents rail + one reading column; code and tables may run wider in their own scrollers. */
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --ink: #151922;
+  --muted: #586071;
+  --rule: #dde1e8;
+  --accent: #2c47c9;
+  --accent-soft: #e7ebfb;
+  --code-bg: #eef0f5;
+  --code-ink: #1b2130;
+  --vk: #a3213a;
+  --vk-soft: #f8e7ea;
+  --warn: #8a5300;
+  --warn-soft: #fff3dc;
+  --ok: #1b7348;
+  --ok-soft: #e1f3e9;
+  --syn-kw: #7a2bb3;
+  --syn-str: #1b7348;
+  --syn-com: #7a8394;
+  --syn-num: #b04e08;
+  --syn-type: #2c47c9;
+  --syn-fn: #0b6683;
+
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Cascadia Mono", monospace;
+
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.6rem;
+  --step-3: 2.4rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1116; --surface: #151922; --ink: #e5e8ee; --muted: #9aa2b1; --rule: #262c38;
+    --accent: #93a6ff; --accent-soft: #1c2340; --code-bg: #0a0d12; --code-ink: #dce1ea;
+    --vk: #f08497; --vk-soft: #3a1820; --warn: #f2b65a; --warn-soft: #33270f; --ok: #6fd3a0; --ok-soft: #12291e;
+    --syn-kw: #c792ea; --syn-str: #a5e0b5; --syn-com: #6b7385; --syn-num: #f5a97f; --syn-type: #93a6ff; --syn-fn: #7fd3e8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1116; --surface: #151922; --ink: #e5e8ee; --muted: #9aa2b1; --rule: #262c38;
+  --accent: #93a6ff; --accent-soft: #1c2340; --code-bg: #0a0d12; --code-ink: #dce1ea;
+  --vk: #f08497; --vk-soft: #3a1820; --warn: #f2b65a; --warn-soft: #33270f; --ok: #6fd3a0; --ok-soft: #12291e;
+  --syn-kw: #c792ea; --syn-str: #a5e0b5; --syn-com: #6b7385; --syn-num: #f5a97f; --syn-type: #93a6ff; --syn-fn: #7fd3e8;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+}
+
+.page {
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 46rem);
+  gap: 3rem;
+  justify-content: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 2.5rem 5rem;
+}
+
+/* Contents rail */
+.toc {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + 1.5rem);
+  align-self: start;
+  font-size: var(--step--1);
+}
+.toc summary {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+  padding-block: 0.25rem;
+}
+.toc summary::-webkit-details-marker { display: none; }
+.toc ol { list-style: none; margin: 0.5rem 0 0; padding: 0; display: grid; gap: 0.15rem; }
+.toc li { display: flex; align-items: center; gap: 0.5rem; }
+.toc input { accent-color: var(--ok); margin: 0; width: 0.95rem; height: 0.95rem; flex: none; }
+.toc a { color: var(--ink); text-decoration: none; padding-block: 0.2rem; }
+.toc a:hover { color: var(--accent); }
+.toc .num { font-family: var(--font-mono); color: var(--muted); font-size: 0.78rem; min-width: 1.4rem; }
+.toc li.done a { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--rule); }
+.toc .progress { margin-top: 0.9rem; color: var(--muted); font-size: 0.8rem; }
+
+main { min-width: 0; }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 15rem; gap: 2rem; align-items: end; padding-bottom: 2rem; border-bottom: 1px solid var(--rule); }
+.eyebrow { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 0.75rem; }
+h1 { font-family: var(--font-display); font-size: var(--step-3); line-height: 1.05; font-weight: 700; margin: 0 0 1rem; text-wrap: balance; letter-spacing: -0.01em; }
+.lede { margin: 0; color: var(--ink); max-width: 36rem; }
+.lede + .lede { margin-top: 0.75rem; color: var(--muted); }
+.frame { margin: 0; }
+.frame canvas { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 6px; border: 1px solid var(--rule); background: #1a1a1f; }
+.frame figcaption { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.4; }
+
+/* Sections */
+section { padding-top: 2.75rem; scroll-margin-top: 1rem; }
+h2 { font-family: var(--font-display); font-size: var(--step-2); line-height: 1.15; font-weight: 700; margin: 0 0 0.9rem; text-wrap: balance; display: flex; align-items: baseline; gap: 0.75rem; }
+h2 .sec { font-family: var(--font-mono); font-weight: 500; font-size: 0.95rem; color: var(--accent); }
+h3 { font-family: var(--font-display); font-size: var(--step-1); font-weight: 500; margin: 1.75rem 0 0.5rem; }
+p, ul, ol { max-width: 40rem; }
+p { margin: 0 0 0.9rem; }
+ul, ol { padding-left: 1.25rem; margin: 0 0 0.9rem; }
+li + li { margin-top: 0.3rem; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--code-bg); color: var(--code-ink); padding: 0.08em 0.3em; border-radius: 3px; overflow-wrap: anywhere; }
+strong { font-weight: 600; }
+
+.goal { font-size: var(--step-1); line-height: 1.4; margin-bottom: 1rem; }
+
+/* Reference chips under each heading */
+.refs { display: flex; flex-wrap: wrap; gap: 0.4rem 0.5rem; margin: 0 0 1.1rem; padding: 0; list-style: none; max-width: none; }
+.refs li { margin: 0; }
+.chip { display: inline-flex; gap: 0.35rem; align-items: baseline; font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); text-decoration: none; }
+.chip b { font-weight: 600; font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.chip.vk { background: var(--vk-soft); border-color: transparent; }
+.chip.vk b { color: var(--vk); }
+a.chip:hover { border-color: var(--accent); }
+
+/* API list */
+.api { font-family: var(--font-mono); font-size: 0.85rem; display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 1rem; padding: 0; list-style: none; max-width: none; }
+.api li { margin: 0; background: var(--accent-soft); color: var(--ink); padding: 0.1rem 0.45rem; border-radius: 4px; }
+
+/* Callouts */
+.callout { border-radius: 6px; padding: 0.8rem 1rem; margin: 1rem 0; max-width: 40rem; }
+.callout > :last-child { margin-bottom: 0; }
+.callout .label { display: block; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 0.25rem; }
+.gotcha { background: var(--warn-soft); }
+.gotcha .label { color: var(--warn); }
+.check { background: var(--ok-soft); }
+.check .label { color: var(--ok); }
+.note { background: var(--accent-soft); }
+.note .label { color: var(--accent); }
+
+/* Code */
+.code { position: relative; margin: 0 0 1rem; }
+pre { margin: 0; background: var(--code-bg); color: var(--code-ink); border-radius: 6px; padding: 0.9rem 1rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.55; tab-size: 4; }
+pre code { background: none; padding: 0; font-size: inherit; overflow-wrap: normal; }
+.copy { position: absolute; top: 0.4rem; right: 0.4rem; font: 500 0.7rem var(--font-body); color: var(--muted); background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 0.15rem 0.5rem; cursor: pointer; opacity: 0.85; }
+.copy:hover { color: var(--accent); border-color: var(--accent); opacity: 1; }
+.hljs-keyword, .hljs-meta .hljs-keyword { color: var(--syn-kw); }
+.hljs-string, .hljs-meta .hljs-string { color: var(--syn-str); }
+.hljs-comment { color: var(--syn-com); font-style: italic; }
+.hljs-number, .hljs-literal { color: var(--syn-num); }
+.hljs-type, .hljs-built_in { color: var(--syn-type); }
+.hljs-title, .hljs-title.function_ { color: var(--syn-fn); }
+.hljs-meta { color: var(--syn-com); }
+
+/* Solutions */
+details.solution { border: 1px solid var(--rule); border-radius: 6px; margin: 1rem 0; background: var(--surface); }
+details.solution > summary { cursor: pointer; padding: 0.6rem 1rem; font-weight: 600; font-size: 0.9rem; color: var(--muted); }
+details.solution > summary:hover { color: var(--accent); }
+details.solution[open] > summary { border-bottom: 1px solid var(--rule); }
+details.solution > .body { padding: 0.9rem 1rem 0.1rem; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 0 0 1.25rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--rule); }
+tr:last-child td { border-bottom: none; }
+th { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--bg); }
+td code { white-space: nowrap; }
+
+.kbd { font-family: var(--font-mono); font-size: 0.8rem; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 4px; padding: 0 0.3rem; background: var(--surface); }
+
+footer { margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: var(--step--1); }
+
+@media (max-width: 960px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding-block: 1.5rem 4rem; }
+  .toc { position: static; border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem 0.9rem; background: var(--surface); }
+}
+@media (max-width: 640px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 2rem; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="page">
+  <nav class="toc" aria-label="Contents">
+    <details id="toc-details" open>
+      <summary>Step 1 contents</summary>
+      <ol id="toc-list">
+        <li data-id="s0"><input type="checkbox" id="done-s0" aria-label="Mark setup done"><span class="num">§0</span><a href="#s0">Setup</a></li>
+        <li data-id="s1"><input type="checkbox" id="done-s1" aria-label="Mark instance done"><span class="num">§1</span><a href="#s1">Instance</a></li>
+        <li data-id="s2"><input type="checkbox" id="done-s2" aria-label="Mark surface done"><span class="num">§2</span><a href="#s2">Surface</a></li>
+        <li data-id="s3"><input type="checkbox" id="done-s3" aria-label="Mark adapter done"><span class="num">§3</span><a href="#s3">Adapter</a></li>
+        <li data-id="s4"><input type="checkbox" id="done-s4" aria-label="Mark device done"><span class="num">§4</span><a href="#s4">Device and errors</a></li>
+        <li data-id="s5"><input type="checkbox" id="done-s5" aria-label="Mark swapchain done"><span class="num">§5</span><a href="#s5">Swapchain and clear</a></li>
+        <li data-id="s6"><input type="checkbox" id="done-s6" aria-label="Mark triangle done"><span class="num">§6</span><a href="#s6">Triangle</a></li>
+        <li data-id="s7"><input type="checkbox" id="done-s7" aria-label="Mark debugging done"><span class="num">§7</span><a href="#s7">Debugging toolkit</a></li>
+      </ol>
+      <p class="progress" id="progress">0 of 8 done</p>
+    </details>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">doomgeneric-wgpu · tutorial step 1 · Dawn v20261027.184652</p>
+        <h1>First triangle</h1>
+        <p class="lede">Instance, surface, adapter, device, swapchain, pipeline, draw. The same chain you build in Vulkan, with the synchronization, memory and layout work moved into the implementation.</p>
+        <p class="lede">You write <code>src/common/gpu.c</code> and the TODOs in <code>src/step1_triangle/main.c</code>. Window, input and build are done. Each section gives the goal, the Vulkan analog, the API to look up, the traps, and a checkpoint. Solutions are folded: open one only after a real attempt.</p>
+      </div>
+      <figure class="frame">
+        <canvas id="expected" width="320" height="180" aria-label="Expected output: an RGB triangle on a dark grey clear color"></canvas>
+        <figcaption>§6 checkpoint, 1280×720 scaled down. Clear (0.1, 0.1, 0.12), vertices at (0, ½), (−½, −½), (½, −½).</figcaption>
+      </figure>
+    </header>
+
+    <!-- §0 -->
+    <section id="s0">
+      <h2><span class="sec">§0</span>Setup and mental model</h2>
+      <p>One-time setup, from the repository root:</p>
+      <div class="code"><pre><code class="nohighlight">pwsh -File setup.ps1</code></pre></div>
+      <p>It fetches the pinned Dawn release (Chrome's WebGPU implementation: static lib, headers, <code>tint.exe</code>), Freedoom for later, and copies the runtime DLLs Dawn loads at startup into <code>third_party/dawn/runtime</code>. Then open <code>doomgeneric-wgpu.sln</code>, keep <strong>step1_triangle</strong> as startup project, press <span class="kbd">F5</span>. The console says <code>Gpu_Init: not implemented yet</code>. You start from there.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File</th><th>Owner</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td><code>src/common/gpu.c</code></td><td>You</td><td>Instance, surface, adapter, device, swapchain. Reused by the Doom project in step 2.</td></tr>
+            <tr><td><code>src/step1_triangle/main.c</code></td><td>You</td><td>WGSL, pipeline, per-frame commands. The main loop is provided.</td></tr>
+            <tr><td><code>src/common/gpu.h</code></td><td>Provided</td><td>The <code>Gpu</code> struct and the five functions you implement. Change it if you disagree.</td></tr>
+            <tr><td><code>src/common/platform_win32.c</code></td><td>Provided</td><td>Win32 window, DPI awareness, resize flag, key callback.</td></tr>
+            <tr><td><code>src/common/msvc_stl_compat.c</code></td><td>Provided</td><td>Prebuilt Dawn is compiled with MSVC 14.50; VS 2022's STL lacks six helpers it calls. Scalar versions.</td></tr>
+            <tr><td><code>third_party/dawn/include/dawn/webgpu.h</code></td><td>Reference</td><td>The exact API you compile against. Search a struct, read its <code>_INIT</code> macro: that is the default for every field.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout note">
+        <span class="label">Build notes</span>
+        <p>Debug links the release CRT (<code>/MD</code>): Dawn ships as a release static lib. Your code is still <code>/Od</code> with a PDB. Dawn validation is not a debug feature; it is always on.</p>
+      </div>
+
+      <h3>Vulkan to WebGPU</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Vulkan</th><th>WebGPU C API</th><th>What changes</th></tr></thead>
+          <tbody>
+            <tr><td><code>VkInstance</code></td><td><code>WGPUInstance</code></td><td>No layers, no extension list.</td></tr>
+            <tr><td><code>VkPhysicalDevice</code></td><td><code>WGPUAdapter</code></td><td>Requested asynchronously with preferences; not enumerated and scored.</td></tr>
+            <tr><td><code>VkDevice</code> + <code>VkQueue</code></td><td><code>WGPUDevice</code> + <code>WGPUQueue</code></td><td>One queue for everything. No families.</td></tr>
+            <tr><td><code>VkSurfaceKHR</code> + <code>VkSwapchainKHR</code></td><td><code>WGPUSurface</code> + <code>wgpuSurfaceConfigure</code></td><td>The swapchain is surface state. Reconfigure on resize; no <code>oldSwapchain</code>.</td></tr>
+            <tr><td><code>vkAcquireNextImageKHR</code> / <code>vkQueuePresentKHR</code></td><td><code>wgpuSurfaceGetCurrentTexture</code> / <code>wgpuSurfacePresent</code></td><td>No semaphores, no fences.</td></tr>
+            <tr><td><code>VkCommandPool</code> + <code>VkCommandBuffer</code></td><td><code>WGPUCommandEncoder</code> → <code>WGPUCommandBuffer</code></td><td>One-shot. No reset, no reuse, no secondary buffers (render bundles are the closest).</td></tr>
+            <tr><td><code>vkCmdBeginRendering</code></td><td><code>wgpuCommandEncoderBeginRenderPass</code></td><td>Load/store ops per attachment. No image layouts.</td></tr>
+            <tr><td><code>VkPipeline</code> + <code>VkPipelineLayout</code></td><td><code>WGPURenderPipeline</code></td><td><code>layout = NULL</code> derives the layout from the shader. Viewport, scissor, blend constant stay dynamic.</td></tr>
+            <tr><td><code>VkShaderModule</code> (SPIR-V)</td><td><code>WGPUShaderModule</code> (WGSL text)</td><td>Dawn's Tint compiles WGSL to HLSL/DXIL or SPIR-V.</td></tr>
+            <tr><td>Descriptor sets</td><td>Bind groups</td><td>Step 2.</td></tr>
+            <tr><td>Barriers, layouts, semaphores, fences</td><td>None</td><td>Dawn tracks usage per pass and inserts them.</td></tr>
+            <tr><td><code>sType</code> / <code>pNext</code></td><td><code>WGPUChainedStruct.sType</code> / <code>nextInChain</code></td><td>Same idea, fewer chains.</td></tr>
+            <tr><td><code>VkResult</code></td><td>Error callbacks</td><td>Failed calls still return an object, marked invalid. Using it is another error.</td></tr>
+            <tr><td><code>vkDestroy*</code></td><td><code>wgpu*Release</code></td><td>Reference counted. Release while the GPU still uses it is fine.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Four C API conventions</h3>
+      <ol>
+        <li><strong>Start every struct from its <code>_INIT</code> macro</strong>: <code>WGPUFoo foo = WGPU_FOO_INIT;</code>. It sets <code>sType</code> on chained structs and the non-zero defaults (<code>multisample.mask = 0xFFFFFFFF</code>, <code>depthSlice = WGPU_DEPTH_SLICE_UNDEFINED</code>). <code>{0}</code> is the WebGPU version of a missing <code>sType</code>.</li>
+        <li><strong>Strings are <code>WGPUStringView { data, length }</code></strong>. <code>length = WGPU_STRLEN</code> means null-terminated; <code>Gpu_Str()</code> in gpu.h builds one. Strings you receive are not null-terminated: print them with <code>"%.*s", SV(view)</code> (macro at the top of gpu.c).</li>
+        <li><strong>Async calls return a <code>WGPUFuture</code></strong> and take a <code>*CallbackInfo</code> with a <code>mode</code>: <code>WaitAnyOnly</code> fires only inside <code>wgpuInstanceWaitAny</code>; <code>AllowProcessEvents</code> also inside <code>wgpuInstanceProcessEvents</code>; <code>AllowSpontaneous</code> anywhere, any thread.</li>
+        <li><strong>Getters that return owned memory</strong> fill a struct you later pass to <code>wgpu*FreeMembers</code>.</li>
+      </ol>
+      <ul class="refs">
+        <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Asynchronous-Operations.html"><b>Header docs</b>Asynchronous operations</a></li>
+        <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Strings.html"><b>Header docs</b>Strings</a></li>
+        <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Ownership.html"><b>Header docs</b>Ownership</a></li>
+      </ul>
+    </section>
+
+    <!-- §1 -->
+    <section id="s1">
+      <h2><span class="sec">§1</span>Instance</h2>
+      <p class="goal">Create a <code>WGPUInstance</code> that can block on futures.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkCreateInstance</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/hello-webgpu.html"><b>LearnWebGPU</b>Hello WebGPU</a></li>
+      </ul>
+      <ul class="api"><li>wgpuCreateInstance</li><li>WGPUInstanceDescriptor</li><li>WGPUInstanceFeatureName_TimedWaitAny</li></ul>
+      <p>Instance features are about the API, not the GPU. You need one: <code>TimedWaitAny</code>. Without it <code>wgpuInstanceWaitAny</code> only accepts a timeout of 0, so initialization would have to poll.</p>
+      <div class="callout check"><span class="label">Checkpoint</span><p>Non-NULL instance. Nothing visible yet.</p></div>
+      <details class="solution"><summary>Solution §1</summary><div class="body">
+<div class="code"><pre><code class="language-c">WGPUInstanceFeatureName instanceFeatures[] = { WGPUInstanceFeatureName_TimedWaitAny };
+
+WGPUInstanceDescriptor instanceDesc = WGPU_INSTANCE_DESCRIPTOR_INIT;
+instanceDesc.requiredFeatureCount   = 1;
+instanceDesc.requiredFeatures       = instanceFeatures;
+
+gpu-&gt;instance = wgpuCreateInstance(&amp;instanceDesc);
+if (!gpu-&gt;instance)
+    return false;</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §2 -->
+    <section id="s2">
+      <h2><span class="sec">§2</span>Surface</h2>
+      <p class="goal">Wrap the window in a <code>WGPUSurface</code>.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkCreateWin32SurfaceKHR</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/opening-a-window.html"><b>LearnWebGPU</b>Opening a window</a></li>
+        <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Surfaces.html"><b>Header docs</b>Surfaces</a></li>
+      </ul>
+      <ul class="api"><li>WGPUSurfaceSourceWindowsHWND</li><li>WGPUSurfaceDescriptor</li><li>wgpuInstanceCreateSurface</li></ul>
+      <p>The platform part is a chained struct hung off the generic descriptor, exactly a <code>pNext</code>. <code>Gpu_Init</code> receives <code>hinstance</code> and <code>hwnd</code> from <code>g_platform</code>.</p>
+      <div class="callout gotcha"><span class="label">Trap</span><p>Create the surface before the adapter. §3 passes it as <code>compatibleSurface</code>, the equivalent of filtering physical devices with <code>vkGetPhysicalDeviceSurfaceSupportKHR</code>.</p></div>
+      <details class="solution"><summary>Solution §2</summary><div class="body">
+<div class="code"><pre><code class="language-c">WGPUSurfaceSourceWindowsHWND hwndSource = WGPU_SURFACE_SOURCE_WINDOWS_HWND_INIT;  // sets chain.sType
+hwndSource.hinstance                    = hinstance;
+hwndSource.hwnd                         = hwnd;
+
+WGPUSurfaceDescriptor surfaceDesc = WGPU_SURFACE_DESCRIPTOR_INIT;
+surfaceDesc.nextInChain           = &amp;hwndSource.chain;
+surfaceDesc.label                 = Gpu_Str("Main surface");
+
+gpu-&gt;surface = wgpuInstanceCreateSurface(gpu-&gt;instance, &amp;surfaceDesc);
+if (!gpu-&gt;surface)
+    return false;</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §3 -->
+    <section id="s3">
+      <h2><span class="sec">§3</span>Adapter</h2>
+      <p class="goal">Get a GPU that can present to the surface, on the backend passed to <code>Gpu_Init</code>.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkEnumeratePhysicalDevices + scoring</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/adapter-and-device/the-adapter.html"><b>LearnWebGPU</b>The adapter</a></li>
+      </ul>
+      <ul class="api"><li>WGPURequestAdapterOptions</li><li>WGPURequestAdapterCallbackInfo</li><li>wgpuInstanceRequestAdapter</li><li>WGPUFutureWaitInfo</li><li>wgpuInstanceWaitAny</li><li>wgpuAdapterGetInfo</li><li>wgpuAdapterInfoFreeMembers</li></ul>
+      <p>You describe what you want (power preference, compatible surface, backend) and Dawn picks. The request is asynchronous: pass a callback with mode <code>WaitAnyOnly</code>, put the returned future in a <code>WGPUFutureWaitInfo</code>, then block with <code>wgpuInstanceWaitAny(instance, 1, &amp;wait, UINT64_MAX)</code>. The callback receives the adapter; hand it back through <code>userdata1</code>.</p>
+      <p>Copy the callback signature from <code>WGPURequestAdapterCallback</code> in webgpu.h. Then print <code>adapterInfo.device</code> and <code>adapterInfo.backendType</code>.</p>
+      <div class="callout note"><span class="label">Backends</span><p>The <code>backend</code> argument comes from the command line: none = Dawn's choice (D3D12), <code>-vulkan</code>, <code>-d3d11</code>. Set it in Project → Properties → Debugging → Command Arguments. Running on Vulkan lets you read Dawn's output in RenderDoc with tools you already know (§7).</p></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>Console shows your GPU and backend <code>4</code> (D3D12), or <code>6</code> with <code>-vulkan</code>. A Vulkan loader warning may also appear on D3D12: Dawn probes every backend.</p></div>
+      <details class="solution"><summary>Solution §3</summary><div class="body">
+<div class="code"><pre><code class="language-c">static void OnRequestAdapter(WGPURequestAdapterStatus status, WGPUAdapter adapter, WGPUStringView message,
+                             void* userdata1, void* userdata2)
+{
+    (void)userdata2;
+    if (status != WGPURequestAdapterStatus_Success)
+        fprintf(stderr, "[gpu] RequestAdapter failed: %.*s\n", SV(message));
+    *(WGPUAdapter*)userdata1 = adapter;
+}</code></pre></div>
+<div class="code"><pre><code class="language-c">WGPURequestAdapterOptions adapterOptions = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
+adapterOptions.compatibleSurface         = gpu-&gt;surface;
+adapterOptions.powerPreference           = WGPUPowerPreference_HighPerformance;
+adapterOptions.backendType               = backend;
+
+WGPURequestAdapterCallbackInfo adapterCallback = WGPU_REQUEST_ADAPTER_CALLBACK_INFO_INIT;
+adapterCallback.mode                           = WGPUCallbackMode_WaitAnyOnly;
+adapterCallback.callback                       = OnRequestAdapter;
+adapterCallback.userdata1                      = &amp;gpu-&gt;adapter;
+
+WGPUFutureWaitInfo wait = WGPU_FUTURE_WAIT_INFO_INIT;
+wait.future = wgpuInstanceRequestAdapter(gpu-&gt;instance, &amp;adapterOptions, adapterCallback);
+wgpuInstanceWaitAny(gpu-&gt;instance, 1, &amp;wait, UINT64_MAX);
+if (!gpu-&gt;adapter)
+    return false;
+
+WGPUAdapterInfo adapterInfo = WGPU_ADAPTER_INFO_INIT;
+wgpuAdapterGetInfo(gpu-&gt;adapter, &amp;adapterInfo);
+printf("[gpu] Adapter: %.*s, backend %d\n", SV(adapterInfo.device), adapterInfo.backendType);
+wgpuAdapterInfoFreeMembers(adapterInfo);</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §4 -->
+    <section id="s4">
+      <h2><span class="sec">§4</span>Device and the error model</h2>
+      <p class="goal">Create the device and queue with error reporting wired before anything else can fail.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkCreateDevice + vkGetDeviceQueue</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/adapter-and-device/the-device.html"><b>LearnWebGPU</b>The device</a></li>
+        <li><a class="chip" href="https://webgpu-native.github.io/webgpu-headers/Errors.html"><b>Header docs</b>Errors</a></li>
+      </ul>
+      <ul class="api"><li>WGPUDeviceDescriptor</li><li>WGPURequestDeviceCallbackInfo</li><li>wgpuAdapterRequestDevice</li><li>WGPUUncapturedErrorCallback</li><li>WGPUDeviceLostCallback</li><li>WGPUDawnTogglesDescriptor</li><li>wgpuDeviceSetLoggingCallback</li><li>wgpuDeviceGetQueue</li></ul>
+      <p>Same request/wait pattern as §3. No features or limits to request: the defaults are WebGPU's core limits, a conservative profile every adapter supports. What matters here is the error model, which replaces <code>VkResult</code> and validation layers:</p>
+      <ul>
+        <li>A failing call still returns an object, marked invalid. Any later use of it is another error. Fix the first message, ignore the cascade.</li>
+        <li>Errors go to the <strong>uncaptured error callback</strong> unless captured by an error scope (<code>wgpuDevicePushErrorScope</code> / <code>wgpuDevicePopErrorScope</code>).</li>
+        <li><strong>Device lost</strong> is <code>VK_ERROR_DEVICE_LOST</code>, but it also fires on normal destruction with reason <code>Destroyed</code> or <code>CallbackCancelled</code>. Filter those.</li>
+      </ul>
+      <p>Chain a <code>WGPUDawnTogglesDescriptor</code> into the device descriptor. Toggles are Dawn-only switches passed by name:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Toggle</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>use_user_defined_labels_in_backend</code></td><td>Your labels become D3D12/Vulkan object names: readable RenderDoc and PIX captures.</td></tr>
+            <tr><td><code>disable_symbol_renaming</code></td><td>WGSL identifiers survive into the generated HLSL and SPIR-V.</td></tr>
+            <tr><td><code>dump_shaders</code></td><td>Optional. Prints generated HLSL/SPIR-V through the logging callback.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout gotcha"><span class="label">Traps</span>
+        <ul>
+          <li><code>uncapturedErrorCallbackInfo</code> has no <code>mode</code>; <code>deviceLostCallbackInfo</code> does. Use <code>AllowSpontaneous</code>.</li>
+          <li>Toggle names are <code>const char*</code>, not <code>WGPUStringView</code>.</li>
+          <li>Label everything (every descriptor has <code>.label</code>). Error messages and captures quote them.</li>
+        </ul>
+      </div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>Non-NULL device and queue. No <code>[gpu]</code> errors in the console.</p></div>
+      <details class="solution"><summary>Solution §4</summary><div class="body">
+<div class="code"><pre><code class="language-c">static void OnRequestDevice(WGPURequestDeviceStatus status, WGPUDevice device, WGPUStringView message,
+                            void* userdata1, void* userdata2)
+{
+    (void)userdata2;
+    if (status != WGPURequestDeviceStatus_Success)
+        fprintf(stderr, "[gpu] RequestDevice failed: %.*s\n", SV(message));
+    *(WGPUDevice*)userdata1 = device;
+}
+
+static void OnDeviceLost(WGPUDevice const* device, WGPUDeviceLostReason reason, WGPUStringView message,
+                         void* userdata1, void* userdata2)
+{
+    (void)device, (void)userdata1, (void)userdata2;
+    // Destroyed / CallbackCancelled: we released the device ourselves.
+    if (reason == WGPUDeviceLostReason_Destroyed || reason == WGPUDeviceLostReason_CallbackCancelled)
+        return;
+    fprintf(stderr, "[gpu] Device lost (reason %d): %.*s\n", reason, SV(message));
+}
+
+static void OnUncapturedError(WGPUDevice const* device, WGPUErrorType type, WGPUStringView message,
+                              void* userdata1, void* userdata2)
+{
+    (void)device, (void)userdata1, (void)userdata2;
+    fprintf(stderr, "[gpu] Error (type %d): %.*s\n", type, SV(message));
+
+    // Reported on the next tick, not inside the faulty call: the message names the call and labels.
+    if (IsDebuggerPresent())
+        __debugbreak();
+}
+
+static void OnLog(WGPULoggingType type, WGPUStringView message, void* userdata1, void* userdata2)
+{
+    (void)type, (void)userdata1, (void)userdata2;
+    fprintf(stderr, "[dawn] %.*s\n", SV(message));
+}</code></pre></div>
+<div class="code"><pre><code class="language-c">const char* toggles[] = {
+    "use_user_defined_labels_in_backend",  // labels show up in RenderDoc / PIX
+    "disable_symbol_renaming",             // WGSL names survive in generated HLSL / SPIR-V
+};
+
+WGPUDawnTogglesDescriptor togglesDesc = WGPU_DAWN_TOGGLES_DESCRIPTOR_INIT;
+togglesDesc.enabledToggleCount        = sizeof(toggles) / sizeof(toggles[0]);
+togglesDesc.enabledToggles            = toggles;
+
+WGPUDeviceDescriptor deviceDesc                 = WGPU_DEVICE_DESCRIPTOR_INIT;
+deviceDesc.nextInChain                          = &amp;togglesDesc.chain;
+deviceDesc.label                                = Gpu_Str("Main device");
+deviceDesc.deviceLostCallbackInfo.mode          = WGPUCallbackMode_AllowSpontaneous;
+deviceDesc.deviceLostCallbackInfo.callback      = OnDeviceLost;
+deviceDesc.uncapturedErrorCallbackInfo.callback = OnUncapturedError;
+
+WGPURequestDeviceCallbackInfo deviceCallback = WGPU_REQUEST_DEVICE_CALLBACK_INFO_INIT;
+deviceCallback.mode                          = WGPUCallbackMode_WaitAnyOnly;
+deviceCallback.callback                      = OnRequestDevice;
+deviceCallback.userdata1                     = &amp;gpu-&gt;device;
+
+wait.future = wgpuAdapterRequestDevice(gpu-&gt;adapter, &amp;deviceDesc, deviceCallback);
+wgpuInstanceWaitAny(gpu-&gt;instance, 1, &amp;wait, UINT64_MAX);
+if (!gpu-&gt;device)
+    return false;
+
+WGPULoggingCallbackInfo logCallback = WGPU_LOGGING_CALLBACK_INFO_INIT;
+logCallback.callback                = OnLog;
+wgpuDeviceSetLoggingCallback(gpu-&gt;device, logCallback);
+
+gpu-&gt;queue = wgpuDeviceGetQueue(gpu-&gt;device);</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §5 -->
+    <section id="s5">
+      <h2><span class="sec">§5</span>Swapchain, clear, present</h2>
+      <p class="goal">Fill the window with a clear color every frame, and survive resizes.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkCreateSwapchainKHR, acquire, present, render pass</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/first-color.html"><b>LearnWebGPU</b>First color</a></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/getting-started/the-command-queue.html"><b>LearnWebGPU</b>The command queue</a></li>
+      </ul>
+      <ul class="api"><li>wgpuSurfaceGetCapabilities</li><li>wgpuSurfaceCapabilitiesFreeMembers</li><li>WGPUSurfaceConfiguration</li><li>wgpuSurfaceConfigure</li><li>wgpuSurfaceGetCurrentTexture</li><li>wgpuTextureCreateView</li><li>wgpuSurfacePresent</li><li>wgpuDeviceCreateCommandEncoder</li><li>wgpuCommandEncoderBeginRenderPass</li><li>wgpuCommandEncoderFinish</li><li>wgpuQueueSubmit</li></ul>
+
+      <h3>Configure (end of <code>Gpu_Init</code>, and <code>Gpu_Resize</code>)</h3>
+      <p>Take <code>caps.formats[0]</code>, the preferred format: <code>BGRA8Unorm</code> on D3D12. It is not sRGB, which suits Doom: its palette is already display-encoded, so bytes pass through untouched. <code>Gpu_Resize</code> fills a <code>WGPUSurfaceConfiguration</code> (device, format, <code>RenderAttachment</code> usage, size, <code>Fifo</code>, alpha <code>Auto</code>) and calls <code>wgpuSurfaceConfigure</code>. Calling it again is how you recreate the swapchain. Skip 0×0: a minimized window.</p>
+
+      <h3>Acquire and present (<code>Gpu_BeginFrame</code>, <code>Gpu_EndFrame</code>)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th><code>WGPUSurfaceTexture.status</code></th><th>Vulkan analog</th><th>Do</th></tr></thead>
+          <tbody>
+            <tr><td><code>SuccessOptimal</code>, <code>SuccessSuboptimal</code></td><td><code>VK_SUCCESS</code>, <code>VK_SUBOPTIMAL_KHR</code></td><td>Draw.</td></tr>
+            <tr><td><code>Outdated</code>, <code>Lost</code></td><td><code>VK_ERROR_OUT_OF_DATE_KHR</code>, <code>VK_ERROR_SURFACE_LOST_KHR</code></td><td>Reconfigure, skip the frame.</td></tr>
+            <tr><td><code>Timeout</code>, <code>Error</code></td><td><code>VK_TIMEOUT</code>, other errors</td><td>Skip the frame.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Create a view of the texture for the render pass. Keep the texture in <code>gpu-&gt;frameTexture</code> until after <code>wgpuSurfacePresent</code>, then release the view and the texture. End the frame with <code>wgpuInstanceProcessEvents</code>: it fires <code>AllowProcessEvents</code> callbacks, none yet, but buffer mapping in step 2 relies on it.</p>
+
+      <h3>Record and submit (<code>DrawFrame</code> in main.c)</h3>
+      <p>Encoder, render pass with one color attachment (<code>loadOp = Clear</code>, <code>storeOp = Store</code>), <code>End</code>, <code>Finish</code>, <code>Submit</code>, release what you created. No layout transition before or after the pass: Dawn knows the texture goes from render target to present.</p>
+      <div class="callout gotcha"><span class="label">Traps</span>
+        <ul>
+          <li><code>WGPURenderPassColorAttachment.depthSlice</code> must be <code>WGPU_DEPTH_SLICE_UNDEFINED</code> for 2D views. The <code>_INIT</code> macro sets it; <code>{0}</code> does not.</li>
+          <li>Call <code>wgpuRenderPassEncoderEnd</code> before <code>wgpuCommandEncoderFinish</code>, and release the pass encoder.</li>
+          <li>Release every returned surface texture, also on the skip paths.</li>
+        </ul>
+      </div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>The window shows your clear color. Resize and minimize: no errors in the console.</p></div>
+      <details class="solution"><summary>Solution §5: gpu.c</summary><div class="body">
+<div class="code"><pre><code class="language-c">// End of Gpu_Init.
+WGPUSurfaceCapabilities caps = WGPU_SURFACE_CAPABILITIES_INIT;
+wgpuSurfaceGetCapabilities(gpu-&gt;surface, gpu-&gt;adapter, &amp;caps);
+gpu-&gt;surfaceFormat = caps.formats[0];
+wgpuSurfaceCapabilitiesFreeMembers(caps);
+
+Gpu_Resize(gpu, width, height);
+return true;</code></pre></div>
+<div class="code"><pre><code class="language-c">void Gpu_Resize(Gpu* gpu, uint32_t width, uint32_t height)
+{
+    if (width == 0 || height == 0)
+        return;
+
+    gpu-&gt;width  = width;
+    gpu-&gt;height = height;
+
+    WGPUSurfaceConfiguration config = WGPU_SURFACE_CONFIGURATION_INIT;
+    config.device                   = gpu-&gt;device;
+    config.format                   = gpu-&gt;surfaceFormat;
+    config.usage                    = WGPUTextureUsage_RenderAttachment;
+    config.width                    = width;
+    config.height                   = height;
+    config.presentMode              = WGPUPresentMode_Fifo;
+    config.alphaMode                = WGPUCompositeAlphaMode_Auto;
+    wgpuSurfaceConfigure(gpu-&gt;surface, &amp;config);
+}
+
+WGPUTextureView Gpu_BeginFrame(Gpu* gpu)
+{
+    WGPUSurfaceTexture surfaceTexture = WGPU_SURFACE_TEXTURE_INIT;
+    wgpuSurfaceGetCurrentTexture(gpu-&gt;surface, &amp;surfaceTexture);
+
+    switch (surfaceTexture.status)
+    {
+    case WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal:
+    case WGPUSurfaceGetCurrentTextureStatus_SuccessSuboptimal:
+        break;
+
+    case WGPUSurfaceGetCurrentTextureStatus_Outdated:
+    case WGPUSurfaceGetCurrentTextureStatus_Lost:
+        if (surfaceTexture.texture)
+            wgpuTextureRelease(surfaceTexture.texture);
+        Gpu_Resize(gpu, gpu-&gt;width, gpu-&gt;height);
+        return NULL;
+
+    default:
+        if (surfaceTexture.texture)
+            wgpuTextureRelease(surfaceTexture.texture);
+        return NULL;
+    }
+
+    gpu-&gt;frameTexture = surfaceTexture.texture;
+
+    WGPUTextureViewDescriptor viewDesc = WGPU_TEXTURE_VIEW_DESCRIPTOR_INIT;
+    viewDesc.label                     = Gpu_Str("Swapchain view");
+    return wgpuTextureCreateView(surfaceTexture.texture, &amp;viewDesc);
+}
+
+void Gpu_EndFrame(Gpu* gpu, WGPUTextureView view)
+{
+    wgpuSurfacePresent(gpu-&gt;surface);
+
+    wgpuTextureViewRelease(view);
+    wgpuTextureRelease(gpu-&gt;frameTexture);
+    gpu-&gt;frameTexture = NULL;
+
+    wgpuInstanceProcessEvents(gpu-&gt;instance);
+}</code></pre></div>
+      </div></details>
+      <details class="solution"><summary>Solution §5: DrawFrame</summary><div class="body">
+<div class="code"><pre><code class="language-c">static void DrawFrame(Gpu* gpu, WGPURenderPipeline pipeline, WGPUTextureView target)
+{
+    (void)pipeline;  // §6
+
+    WGPUCommandEncoderDescriptor encoderDesc = WGPU_COMMAND_ENCODER_DESCRIPTOR_INIT;
+    encoderDesc.label                        = Gpu_Str("Frame encoder");
+
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(gpu-&gt;device, &amp;encoderDesc);
+
+    WGPURenderPassColorAttachment color = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
+    color.view                          = target;
+    color.loadOp                        = WGPULoadOp_Clear;
+    color.storeOp                       = WGPUStoreOp_Store;
+    color.clearValue                    = (WGPUColor){ 0.1, 0.1, 0.12, 1.0 };
+
+    WGPURenderPassDescriptor passDesc = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+    passDesc.label                    = Gpu_Str("Triangle pass");
+    passDesc.colorAttachmentCount     = 1;
+    passDesc.colorAttachments         = &amp;color;
+
+    WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &amp;passDesc);
+    wgpuRenderPassEncoderEnd(pass);
+    wgpuRenderPassEncoderRelease(pass);
+
+    WGPUCommandBuffer commands = wgpuCommandEncoderFinish(encoder, NULL);
+    wgpuQueueSubmit(gpu-&gt;queue, 1, &amp;commands);
+
+    wgpuCommandBufferRelease(commands);
+    wgpuCommandEncoderRelease(encoder);
+}</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §6 -->
+    <section id="s6">
+      <h2><span class="sec">§6</span>Triangle</h2>
+      <p class="goal">Write the WGSL, build the pipeline, draw three vertices. Then clean up.</p>
+      <ul class="refs">
+        <li><span class="chip vk"><b>Vulkan</b>vkCreateGraphicsPipelines + vkCmdDraw</span></li>
+        <li><a class="chip" href="https://eliemichel.github.io/LearnWebGPU/basic-3d-rendering/hello-triangle.html"><b>LearnWebGPU</b>Hello triangle</a></li>
+        <li><a class="chip" href="https://www.w3.org/TR/WGSL/"><b>Spec</b>WGSL</a></li>
+      </ul>
+      <ul class="api"><li>WGPUShaderSourceWGSL</li><li>WGPUShaderModuleDescriptor</li><li>wgpuDeviceCreateShaderModule</li><li>WGPURenderPipelineDescriptor</li><li>WGPUFragmentState</li><li>WGPUColorTargetState</li><li>wgpuDeviceCreateRenderPipeline</li><li>wgpuRenderPassEncoderSetPipeline</li><li>wgpuRenderPassEncoderDraw</li></ul>
+
+      <h3>WGSL for GLSL readers</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>GLSL (Vulkan)</th><th>WGSL</th></tr></thead>
+          <tbody>
+            <tr><td><code>vec4</code>, <code>uint</code>, <code>float</code></td><td><code>vec4f</code> (= <code>vec4&lt;f32&gt;</code>), <code>u32</code>, <code>f32</code></td></tr>
+            <tr><td><code>gl_VertexIndex</code></td><td><code>@builtin(vertex_index)</code> parameter</td></tr>
+            <tr><td><code>gl_Position</code></td><td><code>@builtin(position)</code> output member</td></tr>
+            <tr><td><code>layout(location = 0) out vec3 c;</code></td><td><code>@location(0) color: vec3f</code> struct member</td></tr>
+            <tr><td><code>void main()</code> per module</td><td>Any number of <code>@vertex</code> / <code>@fragment</code> functions, picked by name at pipeline creation</td></tr>
+            <tr><td><code>const</code> / local variable</td><td><code>let</code> (immutable) / <code>var</code> (mutable, required for runtime array indexing)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout gotcha"><span class="label">Clip space</span><p>WebGPU clip space is Y-up (D3D/GL convention), depth 0 to 1. Vulkan's is Y-down: the same vertices would render upside down there. Dawn's Vulkan backend compensates with a negative viewport height; look for it in RenderDoc.</p></div>
+      <p>The shader, to type in as a C string literal:</p>
+      <div class="code"><pre><code class="language-rust">struct VsOut {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec3f,
+};
+
+@vertex
+fn vs_main(@builtin(vertex_index) i: u32) -&gt; VsOut {
+    var positions = array&lt;vec2f, 3&gt;(vec2f(0.0, 0.5), vec2f(-0.5, -0.5), vec2f(0.5, -0.5));
+    var colors = array&lt;vec3f, 3&gt;(vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), vec3f(0.0, 0.0, 1.0));
+    var out: VsOut;
+    out.position = vec4f(positions[i], 0.0, 1.0);
+    out.color = colors[i];
+    return out;
+}
+
+@fragment
+fn fs_main(in: VsOut) -&gt; @location(0) vec4f {
+    return vec4f(in.color, 1.0);
+}</code></pre></div>
+
+      <h3>Pipeline</h3>
+      <p>Chain <code>WGPUShaderSourceWGSL</code> into the module descriptor. In the pipeline descriptor: vertex stage (module, entry point, no vertex buffers), <code>TriangleList</code>, a fragment stage with one color target in <code>gpu-&gt;surfaceFormat</code>, and <code>layout = NULL</code>. The auto layout is reflected from the shader, like building the <code>VkPipelineLayout</code> from SPIR-V reflection. Leave cull mode, front face, multisample and write mask at their <code>_INIT</code> defaults. Release the shader module once the pipeline exists.</p>
+      <p>In <code>DrawFrame</code>, inside the pass: <code>SetPipeline</code>, <code>Draw(3, 1, 0, 0)</code>. Finally write <code>Gpu_Shutdown</code>: unconfigure the surface, then release surface, queue, device, adapter, instance.</p>
+      <div class="callout check"><span class="label">Checkpoint</span><p>The triangle from the top of this page. Then run with <code>-vulkan</code>: identical image.</p></div>
+      <details class="solution"><summary>Solution §6: shader string and pipeline</summary><div class="body">
+<div class="code"><pre><code class="language-c">static const char* kShaderSource =
+    "struct VsOut {\n"
+    "    @builtin(position) position: vec4f,\n"
+    "    @location(0) color: vec3f,\n"
+    "};\n"
+    "\n"
+    "@vertex\n"
+    "fn vs_main(@builtin(vertex_index) i: u32) -&gt; VsOut {\n"
+    "    var positions = array&lt;vec2f, 3&gt;(vec2f(0.0, 0.5), vec2f(-0.5, -0.5), vec2f(0.5, -0.5));\n"
+    "    var colors = array&lt;vec3f, 3&gt;(vec3f(1.0, 0.0, 0.0), vec3f(0.0, 1.0, 0.0), vec3f(0.0, 0.0, 1.0));\n"
+    "    var out: VsOut;\n"
+    "    out.position = vec4f(positions[i], 0.0, 1.0);\n"
+    "    out.color = colors[i];\n"
+    "    return out;\n"
+    "}\n"
+    "\n"
+    "@fragment\n"
+    "fn fs_main(in: VsOut) -&gt; @location(0) vec4f {\n"
+    "    return vec4f(in.color, 1.0);\n"
+    "}\n";
+
+static WGPURenderPipeline CreateTrianglePipeline(Gpu* gpu)
+{
+    WGPUShaderSourceWGSL wgsl = WGPU_SHADER_SOURCE_WGSL_INIT;
+    wgsl.code                 = Gpu_Str(kShaderSource);
+
+    WGPUShaderModuleDescriptor moduleDesc = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
+    moduleDesc.nextInChain                = &amp;wgsl.chain;
+    moduleDesc.label                      = Gpu_Str("Triangle shader");
+
+    WGPUShaderModule module = wgpuDeviceCreateShaderModule(gpu-&gt;device, &amp;moduleDesc);
+
+    WGPUColorTargetState colorTarget = WGPU_COLOR_TARGET_STATE_INIT;
+    colorTarget.format               = gpu-&gt;surfaceFormat;
+
+    WGPUFragmentState fragment = WGPU_FRAGMENT_STATE_INIT;
+    fragment.module            = module;
+    fragment.entryPoint        = Gpu_Str("fs_main");
+    fragment.targetCount       = 1;
+    fragment.targets           = &amp;colorTarget;
+
+    WGPURenderPipelineDescriptor pipelineDesc = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+    pipelineDesc.label                        = Gpu_Str("Triangle pipeline");
+    pipelineDesc.vertex.module                = module;
+    pipelineDesc.vertex.entryPoint            = Gpu_Str("vs_main");
+    pipelineDesc.primitive.topology           = WGPUPrimitiveTopology_TriangleList;
+    pipelineDesc.fragment                     = &amp;fragment;
+
+    WGPURenderPipeline pipeline = wgpuDeviceCreateRenderPipeline(gpu-&gt;device, &amp;pipelineDesc);
+
+    wgpuShaderModuleRelease(module);
+    return pipeline;
+}</code></pre></div>
+      </div></details>
+      <details class="solution"><summary>Solution §6: draw and shutdown</summary><div class="body">
+<div class="code"><pre><code class="language-c">// DrawFrame, between BeginRenderPass and End:
+wgpuRenderPassEncoderSetPipeline(pass, pipeline);
+wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);</code></pre></div>
+<div class="code"><pre><code class="language-c">void Gpu_Shutdown(Gpu* gpu)
+{
+    if (gpu-&gt;surface)
+    {
+        wgpuSurfaceUnconfigure(gpu-&gt;surface);
+        wgpuSurfaceRelease(gpu-&gt;surface);
+    }
+    if (gpu-&gt;queue)
+        wgpuQueueRelease(gpu-&gt;queue);
+    if (gpu-&gt;device)
+        wgpuDeviceRelease(gpu-&gt;device);
+    if (gpu-&gt;adapter)
+        wgpuAdapterRelease(gpu-&gt;adapter);
+    if (gpu-&gt;instance)
+        wgpuInstanceRelease(gpu-&gt;instance);
+
+    memset(gpu, 0, sizeof(*gpu));
+}</code></pre></div>
+      </div></details>
+    </section>
+
+    <!-- §7 -->
+    <section id="s7">
+      <h2><span class="sec">§7</span>Debugging toolkit</h2>
+      <p class="goal">Break the triangle on purpose and practice each tool once. It pays back in step 3.</p>
+
+      <h3>Read an error</h3>
+      <p>Misspell the fragment entry point as <code>"fs_mian"</code>. Real output from this Dawn build:</p>
+      <div class="code"><pre><code class="nohighlight">[gpu] Error (type 2): Entry point ""fs_mian"" doesn't exist in the shader module [ShaderModule "Triangle shader"].
+ - While validating fragment stage ([ShaderModule "Triangle shader"], entryPoint: "fs_mian").
+ - While validating fragment state.
+ - While calling [Device "Main device"].CreateRenderPipeline([RenderPipelineDescriptor ""Triangle pipeline""]).
+
+[gpu] Error (type 2): [Invalid RenderPipeline "Triangle pipeline"] is invalid due to a previous error.
+ - While encoding [RenderPassEncoder "Triangle pass"].SetPipeline([Invalid RenderPipeline "Triangle pipeline"]).
+ - While finishing [CommandEncoder "Frame encoder"].
+
+[gpu] Error (type 2): [Invalid CommandBuffer from CommandEncoder "Frame encoder"] is invalid due to a previous error.
+ - While calling [Queue].Submit([[Invalid CommandBuffer from CommandEncoder "Frame encoder"]])</code></pre></div>
+      <p>Read the first error bottom-up: the API call, then the nested validation path. Everything after it is the invalid-object cascade. Encoder errors are deferred and reported at <code>Finish</code>, so the second message cites <code>SetPipeline</code> but surfaces at <code>Finish</code>.</p>
+
+      <h3>Break at the right place</h3>
+      <p>Errors reach the callback on the next tick (present or <code>ProcessEvents</code>), so a breakpoint there shows the wrong stack. To catch the faulty call, bracket the suspect code with an error scope:</p>
+      <div class="code"><pre><code class="language-c">wgpuDevicePushErrorScope(gpu-&gt;device, WGPUErrorFilter_Validation);
+// ... suspect calls ...
+wgpuDevicePopErrorScope(gpu-&gt;device, popCallbackInfo);  // WGPUPopErrorScopeCallbackInfo, returns a future</code></pre></div>
+      <div class="callout gotcha"><span class="label">Known issue</span><p>The device toggle <code>enable_immediate_error_handling</code> is meant to fire the callback inside the faulty call. In this Dawn build it crashes with an access violation right after the first encoder error (found while writing this page). Don't use it.</p></div>
+
+      <h3>RenderDoc on the Vulkan backend</h3>
+      <p>Launch <code>build\Debug\step1_triangle.exe</code> with <code>-vulkan</code> from RenderDoc and capture a frame. Things to find:</p>
+      <ul>
+        <li>The negative viewport height Dawn uses to flip Y.</li>
+        <li>The barriers Dawn inserted around the swapchain image.</li>
+        <li>Your WGSL compiled to SPIR-V by Tint, with your identifiers kept by <code>disable_symbol_renaming</code>.</li>
+        <li>Your labels on the pipeline and pass (<code>use_user_defined_labels_in_backend</code>).</li>
+      </ul>
+      <p>Without <code>-vulkan</code> you capture D3D12 instead; PIX works there too.</p>
+
+      <h3>Vulkan validation layers under Dawn</h3>
+      <p>With <code>-vulkan</code>, set <code>VK_LOADER_LAYERS_ENABLE=*validation</code> in Debugging → Environment, or use vkconfig. This validates Dawn's Vulkan usage, not yours: useful to see what WebGPU's validation already prevents. Expected noise, from Dawn itself at adapter setup: <code>VUID-VkPhysicalDeviceProperties2-pNext-pNext</code>, a <code>VkPhysicalDeviceMaintenance9FeaturesKHR</code> chained into a properties query. A Dawn bug, not yours.</p>
+
+      <h3>Compile WGSL offline with tint.exe</h3>
+      <div class="code"><pre><code class="nohighlight">third_party\dawn\bin\tint.exe --format spvasm --entry-point vs_main triangle.wgsl
+third_party\dawn\bin\tint.exe --format hlsl   --entry-point vs_main triangle.wgsl</code></pre></div>
+      <p>The HLSL shows a WebGPU guarantee you get for free: out-of-bounds access is impossible, so Tint clamps your dynamic index.</p>
+      <div class="code"><pre><code class="language-c">v.position = float4(positions[min(i, 2u)], 0.0f, 1.0f);
+v.color = colors[min(i, 2u)];</code></pre></div>
+      <div class="callout check"><span class="label">Checkpoint</span><p>You have read one real error, captured one frame on Vulkan, and seen Tint's output. Tell your instructor, and ask for step 2: Doom's frame on the GPU (texture upload, sampler, bind group, 4:3 fullscreen triangle).</p></div>
+    </section>
+
+    <footer>
+      <p>References: <a href="https://eliemichel.github.io/LearnWebGPU/">LearnWebGPU</a> (C++, same C API underneath) · <a href="https://webgpu-native.github.io/webgpu-headers/">webgpu.h documentation</a> · <a href="https://www.w3.org/TR/webgpu/">WebGPU spec</a> · <a href="https://www.w3.org/TR/WGSL/">WGSL spec</a> · <a href="https://github.com/google/dawn/blob/main/docs/dawn/debugging.md">Dawn debugging notes</a> · <a href="https://toji.dev/webgpu-best-practices/">WebGPU best practices</a> · <a href="https://webgpufundamentals.org/">WebGPU Fundamentals</a> (JavaScript, same concepts).</p>
+      <p>Source of this page: <code>tutorial/step1.html</code> in the repository.</p>
+    </footer>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>
+(function () {
+  // Expected output: rasterize the §6 triangle with barycentric color interpolation, like the GPU does.
+  function drawExpected() {
+    var canvas = document.getElementById('expected');
+    var ctx = canvas.getContext('2d');
+    var w = canvas.width, h = canvas.height;
+    var img = ctx.createImageData(w, h);
+    // NDC (Y-up) to pixels (Y-down).
+    function px(x, y) { return [(x + 1) / 2 * w, (1 - y) / 2 * h]; }
+    var a = px(0, 0.5), b = px(-0.5, -0.5), c = px(0.5, -0.5);
+    var area = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var sx = x + 0.5, sy = y + 0.5;
+        var wa = ((b[0] - sx) * (c[1] - sy) - (b[1] - sy) * (c[0] - sx)) / area;
+        var wb = ((c[0] - sx) * (a[1] - sy) - (c[1] - sy) * (a[0] - sx)) / area;
+        var wc = 1 - wa - wb;
+        var i = (y * w + x) * 4;
+        if (wa >= 0 && wb >= 0 && wc >= 0) {
+          img.data[i] = Math.round(wa * 255);
+          img.data[i + 1] = Math.round(wb * 255);
+          img.data[i + 2] = Math.round(wc * 255);
+        } else {
+          img.data[i] = 26; img.data[i + 1] = 26; img.data[i + 2] = 31;  // clear (0.1, 0.1, 0.12)
+        }
+        img.data[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // Copy buttons on every code block.
+  function addCopyButtons() {
+    document.querySelectorAll('.code').forEach(function (block) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy';
+      btn.textContent = 'Copy';
+      btn.addEventListener('click', function () {
+        var text = block.querySelector('code').textContent;
+        var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+        var fallback = function () {
+          var range = document.createRange();
+          range.selectNodeContents(block.querySelector('code'));
+          var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+          btn.textContent = 'Press Ctrl+C';
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done, fallback);
+        } else {
+          fallback();
+        }
+      });
+      block.appendChild(btn);
+    });
+  }
+
+  // Per-viewer progress checkboxes. Storage may be unavailable: the page works without it.
+  var KEY = 'wgpu-step1-done';
+  function loadDone() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
+  function saveDone(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
+  function setupProgress() {
+    var done = loadDone();
+    var items = document.querySelectorAll('#toc-list li');
+    var label = document.getElementById('progress');
+    function refresh() {
+      var n = 0;
+      items.forEach(function (li) { var on = !!done[li.dataset.id]; li.classList.toggle('done', on); if (on) n++; });
+      label.textContent = n + ' of ' + items.length + ' done';
+    }
+    items.forEach(function (li) {
+      var box = li.querySelector('input');
+      box.checked = !!done[li.dataset.id];
+      box.addEventListener('change', function () { done[li.dataset.id] = box.checked; saveDone(done); refresh(); });
+    });
+    refresh();
+  }
+
+  // Narrow screens: contents start collapsed.
+  if (window.matchMedia('(max-width: 960px)').matches) document.getElementById('toc-details').open = false;
+
+  drawExpected();
+  addCopyButtons();
+  setupProgress();
+  if (window.hljs) window.hljs.highlightAll();
+})();
+</script>

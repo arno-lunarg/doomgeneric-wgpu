@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dawn (WebGPU) prebuilt static library, fetched by setup.ps1 into third_party/dawn. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <DawnDir>$(MSBuildThisFileDirectory)..\third_party\dawn\</DawnDir>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(DawnDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- Dawn is built against the release CRT, so every configuration uses /MD.
+           Debug builds stay debuggable: /Od + PDB, only the CRT is the release one. -->
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <!-- Link list from third_party/dawn/lib/cmake/Dawn/DawnTargets.cmake. -->
+      <AdditionalDependencies>$(DawnDir)lib\webgpu_dawn.lib;user32.lib;onecore_apiset.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4221 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Target Name="CheckDawn" BeforeTargets="ClCompile">
+    <Error Condition="!Exists('$(DawnDir)include\webgpu\webgpu.h')"
+           Text="Dawn not found in $(DawnDir). Run setup.ps1 from the repository root." />
+  </Target>
+
+  <!-- Dawn only loads dxcompiler.dll, dxil.dll, vulkan-1.dll... from the exe folder. -->
+  <Target Name="CopyDawnRuntime" AfterTargets="Build">
+    <ItemGroup>
+      <DawnRuntime Include="$(DawnDir)runtime\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DawnRuntime)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

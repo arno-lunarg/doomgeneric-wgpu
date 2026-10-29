@@ -1,0 +1,9 @@
+-std=c17
+-Ithird_party/dawn/include
+-Isrc/common
+-Idoomgeneric
+-DWIN32
+-D_CRT_SECURE_NO_WARNINGS
+-DDOOMGENERIC_RESX=320
+-DDOOMGENERIC_RESY=200
+-DSHADER_DIR="shaders/"

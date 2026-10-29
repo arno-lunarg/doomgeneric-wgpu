@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <ProjectGuid>{47555202-B766-41B9-84B2-D9427F871CB4}</ProjectGuid>
+    <RootNamespace>doom_wgpu</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="..\..\props\Common.props" />
+    <Import Project="..\..\props\Dawn.props" />
+  </ImportGroup>
+
+  <!-- F5 runs from wad/: Doom finds the IWAD there and writes its config/saves there. -->
+  <PropertyGroup>
+    <LocalDebuggerWorkingDirectory>$(RepoRoot)wad\</LocalDebuggerWorkingDirectory>
+    <LocalDebuggerCommandArguments></LocalDebuggerCommandArguments>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- 320x200: no CPU upscale in I_FinishUpdate, the GPU scales. -->
+      <PreprocessorDefinitions>DOOMGENERIC_RESX=320;DOOMGENERIC_RESY=200;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\doomgeneric;..\common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- 4244 4267 4018 4311: 64-bit truncation noise from the 1993 engine code. -->
+      <WarningLevel>Level3</WarningLevel>
+      <DisableSpecificWarnings>4146;4996;4244;4267;4018;4311</DisableSpecificWarnings>
+    </ClCompile>
+  </ItemDefinitionGroup>
+
+  <!-- Your code. -->
+  <ItemGroup>
+    <ClCompile Include="doomgeneric_wgpu.c" />
+    <ClCompile Include="..\common\gpu.c" />
+    <ClCompile Include="..\common\msvc_stl_compat.c" />
+    <ClCompile Include="..\common\platform_win32.c" />
+    <ClCompile Include="..\common\shader.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\gpu.h" />
+    <ClInclude Include="..\common\platform_win32.h" />
+    <ClInclude Include="..\common\shader.h" />
+    <!-- Dawn headers as items: 10x's parser indexes project files, not include dirs or props items. -->
+    <ClInclude Include="..\..\third_party\dawn\include\webgpu\webgpu.h" />
+    <ClInclude Include="..\..\third_party\dawn\include\dawn\webgpu.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\shaders\**\*.wgsl" />
+  </ItemGroup>
+
+  <!-- Engine: doomgeneric/*.c minus the other platform backends. -->
+  <ItemGroup>
+    <ClCompile Include="..\..\doomgeneric\am_map.c" />
+    <ClCompile Include="..\..\doomgeneric\doomdef.c" />
+    <ClCompile Include="..\..\doomgeneric\doomgeneric.c" />
+    <ClCompile Include="..\..\doomgeneric\doomstat.c" />
+    <ClCompile Include="..\..\doomgeneric\dstrings.c" />
+    <ClCompile Include="..\..\doomgeneric\dummy.c" />
+    <ClCompile Include="..\..\doomgeneric\d_event.c" />
+    <ClCompile Include="..\..\doomgeneric\d_items.c" />
+    <ClCompile Include="..\..\doomgeneric\d_iwad.c" />
+    <ClCompile Include="..\..\doomgeneric\d_loop.c" />
+    <ClCompile Include="..\..\doomgeneric\d_main.c" />
+    <ClCompile Include="..\..\doomgeneric\d_mode.c" />
+    <ClCompile Include="..\..\doomgeneric\d_net.c" />
+    <ClCompile Include="..\..\doomgeneric\f_finale.c" />
+    <ClCompile Include="..\..\doomgeneric\f_wipe.c" />
+    <ClCompile Include="..\..\doomgeneric\gusconf.c" />
+    <ClCompile Include="..\..\doomgeneric\g_game.c" />
+    <ClCompile Include="..\..\doomgeneric\hu_lib.c" />
+    <ClCompile Include="..\..\doomgeneric\hu_stuff.c" />
+    <ClCompile Include="..\..\doomgeneric\icon.c" />
+    <ClCompile Include="..\..\doomgeneric\info.c" />
+    <ClCompile Include="..\..\doomgeneric\i_cdmus.c" />
+    <ClCompile Include="..\..\doomgeneric\i_endoom.c" />
+    <ClCompile Include="..\..\doomgeneric\i_input.c" />
+    <ClCompile Include="..\..\doomgeneric\i_joystick.c" />
+    <ClCompile Include="..\..\doomgeneric\i_scale.c" />
+    <ClCompile Include="..\..\doomgeneric\i_sound.c" />
+    <ClCompile Include="..\..\doomgeneric\i_system.c" />
+    <ClCompile Include="..\..\doomgeneric\i_timer.c" />
+    <ClCompile Include="..\..\doomgeneric\i_video.c" />
+    <ClCompile Include="..\..\doomgeneric\memio.c" />
+    <ClCompile Include="..\..\doomgeneric\m_argv.c" />
+    <ClCompile Include="..\..\doomgeneric\m_bbox.c" />
+    <ClCompile Include="..\..\doomgeneric\m_cheat.c" />
+    <ClCompile Include="..\..\doomgeneric\m_config.c" />
+    <ClCompile Include="..\..\doomgeneric\m_controls.c" />
+    <ClCompile Include="..\..\doomgeneric\m_fixed.c" />
+    <ClCompile Include="..\..\doomgeneric\m_menu.c" />
+    <ClCompile Include="..\..\doomgeneric\m_misc.c" />
+    <ClCompile Include="..\..\doomgeneric\m_random.c" />
+    <ClCompile Include="..\..\doomgeneric\p_ceilng.c" />
+    <ClCompile Include="..\..\doomgeneric\p_doors.c" />
+    <ClCompile Include="..\..\doomgeneric\p_enemy.c" />
+    <ClCompile Include="..\..\doomgeneric\p_floor.c" />
+    <ClCompile Include="..\..\doomgeneric\p_inter.c" />
+    <ClCompile Include="..\..\doomgeneric\p_lights.c" />
+    <ClCompile Include="..\..\doomgeneric\p_map.c" />
+    <ClCompile Include="..\..\doomgeneric\p_maputl.c" />
+    <ClCompile Include="..\..\doomgeneric\p_mobj.c" />
+    <ClCompile Include="..\..\doomgeneric\p_plats.c" />
+    <ClCompile Include="..\..\doomgeneric\p_pspr.c" />
+    <ClCompile Include="..\..\doomgeneric\p_saveg.c" />
+    <ClCompile Include="..\..\doomgeneric\p_setup.c" />
+    <ClCompile Include="..\..\doomgeneric\p_sight.c" />
+    <ClCompile Include="..\..\doomgeneric\p_spec.c" />
+    <ClCompile Include="..\..\doomgeneric\p_switch.c" />
+    <ClCompile Include="..\..\doomgeneric\p_telept.c" />
+    <ClCompile Include="..\..\doomgeneric\p_tick.c" />
+    <ClCompile Include="..\..\doomgeneric\p_user.c" />
+    <ClCompile Include="..\..\doomgeneric\r_bsp.c" />
+    <ClCompile Include="..\..\doomgeneric\r_data.c" />
+    <ClCompile Include="..\..\doomgeneric\r_draw.c" />
+    <ClCompile Include="..\..\doomgeneric\r_main.c" />
+    <ClCompile Include="..\..\doomgeneric\r_plane.c" />
+    <ClCompile Include="..\..\doomgeneric\r_segs.c" />
+    <ClCompile Include="..\..\doomgeneric\r_sky.c" />
+    <ClCompile Include="..\..\doomgeneric\r_things.c" />
+    <ClCompile Include="..\..\doomgeneric\sha1.c" />
+    <ClCompile Include="..\..\doomgeneric\sounds.c" />
+    <ClCompile Include="..\..\doomgeneric\statdump.c" />
+    <ClCompile Include="..\..\doomgeneric\st_lib.c" />
+    <ClCompile Include="..\..\doomgeneric\st_stuff.c" />
+    <ClCompile Include="..\..\doomgeneric\s_sound.c" />
+    <ClCompile Include="..\..\doomgeneric\tables.c" />
+    <ClCompile Include="..\..\doomgeneric\v_video.c" />
+    <ClCompile Include="..\..\doomgeneric\wi_stuff.c" />
+    <ClCompile Include="..\..\doomgeneric\w_checksum.c" />
+    <ClCompile Include="..\..\doomgeneric\w_file.c" />
+    <ClCompile Include="..\..\doomgeneric\w_file_stdc.c" />
+    <ClCompile Include="..\..\doomgeneric\w_main.c" />
+    <ClCompile Include="..\..\doomgeneric\w_wad.c" />
+    <ClCompile Include="..\..\doomgeneric\z_zone.c" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

@@ -10,3 +10,27 @@ Debug/
 Release/
 Build/
 doomgeneric.map
+
+# doomgeneric-wgpu
+# Fetched by setup.ps1, built by MSBuild
+build/
+third_party/
+wad/
+
+# Per-user VS debug args (step1_triangle.args.json)
+*.args.json
+
+# Doom output when run outside wad/: IWADs, configs, saves
+*.wad
+*.cfg
+*.dsg
+
+# tools/capture.ps1 output at repo root
+/*.png
+
+# clangd index
+.cache/
+
+# Claude Code per-user settings and worktrees
+.claude/settings.local.json
+.claude/worktrees/
