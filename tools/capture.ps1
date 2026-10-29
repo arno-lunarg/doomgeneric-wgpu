@@ -2,14 +2,17 @@
 # Finds the window by class (platform_win32.c registers "WebGpuWindow"). PrintWindow captures
 # DXGI flip-model content even when the window is covered.
 #
-# Usage: pwsh -File tools/capture.ps1 -Exe build\Debug\step1_triangle.exe -Out shot.png [-Args -vulkan] [-WorkDir wad] [-Wait 4]
+# -Client drops the title bar and borders: their focus state differs between runs, which breaks tools/imgdiff.ps1.
+#
+# Usage: pwsh -File tools/capture.ps1 -Exe build\Debug\step1_triangle.exe -Out shot.png [-Args -vulkan] [-WorkDir wad] [-Wait 4] [-Client]
 param(
     [Parameter(Mandatory)][string]$Exe,
     [Parameter(Mandatory)][string]$Out,
     [string]$Args = '',
     [string]$WorkDir = '',
     [int]$Wait = 4,
-    [string]$Class = 'WebGpuWindow'
+    [string]$Class = 'WebGpuWindow',
+    [switch]$Client
 )
 
 Add-Type -AssemblyName System.Drawing
@@ -19,6 +22,7 @@ using System.Runtime.InteropServices;
 public static class Win {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+  [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("user32.dll", CharSet = CharSet.Ansi)] public static extern IntPtr FindWindowA(string c, string t);
@@ -52,17 +56,18 @@ if ($p.HasExited) {
             Write-Host "No window of class $Class"
         } else {
             $r = New-Object Win+RECT
-            [Win]::GetWindowRect($h, [ref]$r) | Out-Null
+            if ($Client) { [Win]::GetClientRect($h, [ref]$r) | Out-Null } else { [Win]::GetWindowRect($h, [ref]$r) | Out-Null }
             $bmp = New-Object System.Drawing.Bitmap ($r.R - $r.L), ($r.B - $r.T)
             $g   = [System.Drawing.Graphics]::FromImage($bmp)
             $hdc = $g.GetHdc()
-            [Win]::PrintWindow($h, $hdc, 2) | Out-Null  # 2 = PW_RENDERFULLCONTENT
+            [Win]::PrintWindow($h, $hdc, $(if ($Client) { 3 } else { 2 })) | Out-Null  # 2 = PW_RENDERFULLCONTENT, 1 = PW_CLIENTONLY
             $g.ReleaseHdc($hdc)
             $bmp.Save($Out)
             Write-Host "Saved $Out ($($bmp.Width)x$($bmp.Height))"
         }
     } finally {
         Stop-Process -Id $p.Id -Force
+        $p.WaitForExit()  # releases the redirected output files before Remove-Item
     }
 }
 

@@ -20,13 +20,14 @@ You are a WebGPU instructor. The learner is a Vulkan expert porting doomgeneric 
 | Step | Topic | Status |
 |---|---|---|
 | 1 | Instance, surface, adapter, device, swapchain, triangle (`step1_triangle`) | Tutorial published |
-| 2 | Doom frame on GPU: upload `DG_ScreenBuffer`, sampler, bind group, 4:3 fullscreen triangle (`doom_wgpu`) | Not started |
+| 2 | Doom frame on GPU: upload `DG_ScreenBuffer`, sampler, bind group, 4:3 fullscreen triangle (`doom_wgpu`) | Tutorial published |
 | 2b | Palette on GPU: `I_VideoBuffer` as `r8uint` + 256×1 palette, `textureLoad`, skip `cmap_to_fb` | Not started |
 | 3 | Walls in compute: record `R_DrawColumn` calls into a storage buffer, one thread per column, CPU mask for floors/sprites/HUD; then spans, sprites | Not started |
 
 Tutorial pages: `tutorial/stepN.html`, written with the `tutorial-step` skill, each published as its own artifact.
 
 - Step 1: https://claude.ai/artifact/JBUb9VibFZSnFcr3SX9zAa
+- Step 2: https://claude.ai/artifact/7ebdaUrjJG1Z2jW9jrjn6r
 
 Update the status column and the artifact list as the learner progresses.
 
@@ -34,7 +35,7 @@ Update the status column and the artifact list as the learner progresses.
 
 - `DG_ScreenBuffer` is `uint32_t` `0x00RRGGBB`: BGRA bytes in memory, alpha 0. Upload as `BGRA8Unorm`; nothing may depend on alpha.
 - The Doom project defines `DOOMGENERIC_RESX=320`, `DOOMGENERIC_RESY=200`: `I_FinishUpdate` does no CPU upscale. Display aspect is 4:3 (non-square pixels).
-- `src/doom/doomgeneric_wgpu.c` blits with GDI (`BlitGdi`). Step 2 replaces it; keeping it behind a `-gdi` flag gives a pixel reference.
+- `-gdi` keeps the GDI blit as pixel reference. The step 2 reference solution matches it exactly on D3D12 and Vulkan (`capture.ps1 -Client` + `imgdiff.ps1`).
 - Step 3 storage writes: `r8uint` is not a core storage-texture format; use `array<u32>` or `r32uint`. Check the spec table before stating it.
 - Fuzz (spectre) effect reads neighbouring pixels: keep it on the CPU path at first.
 - A diff view against the CPU renderer (toggle key) makes step 3 debuggable.
@@ -44,6 +45,7 @@ Update the status column and the artifact list as the learner progresses.
 
 - Solution: `doomgeneric-wgpu.sln`, x64 only. Projects: `step1_triangle`, `doom_wgpu`. Output `build/<Config>/`.
 - `setup.ps1` fetches Dawn `v20261027.184652` (prebuilt static lib, 622 MB) and Freedoom 0.13.0 into `third_party/`, `wad/`.
+- `wad/DOOM.WAD`: Ultimate Doom IWAD copied from the learner's Steam install (`Steam\steamapps\common\Ultimate Doom\base\DOOM.WAD`). Doom's IWAD search picks `doom.wad` before `freedoom1.wad`.
 - Dawn is a release-CRT static lib: every configuration uses `/MD` (`props/Dawn.props`).
 - `src/common/msvc_stl_compat.c`: Dawn is built with MSVC 14.50; VS 2022's 14.44 STL lacks `__std_rotate`, `__std_min_element_4u`, etc. Compiled out on 14.50+.
 - Dawn loads `dxcompiler.dll`, `dxil.dll`, `d3dcompiler_47.dll`, `vulkan-1.dll` only from the exe folder (its system fallback fails with Windows error 87). `setup.ps1` collects them in `third_party/dawn/runtime`, `Dawn.props` copies them after build.
@@ -60,8 +62,11 @@ Update the status column and the artifact list as the learner progresses.
 # Build
 & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" doomgeneric-wgpu.sln /p:Configuration=Debug /p:Platform=x64 /m /nologo /v:minimal
 
-# Run and capture a window (PrintWindow: works when occluded). Prints stdout/stderr.
-pwsh -File tools/capture.ps1 -Exe build\Debug\step1_triangle.exe -Out <png> [-Args -vulkan] [-WorkDir wad] [-Wait 4]
+# Run and capture a window (PrintWindow: works when occluded). Prints stdout/stderr. -Client: no title bar.
+pwsh -File tools/capture.ps1 -Exe build\Debug\step1_triangle.exe -Out <png> [-Args -vulkan] [-WorkDir wad] [-Wait 4] [-Client]
+
+# Compare two PNGs: differing pixel count, bbox, optional red diff image
+pwsh -File tools/imgdiff.ps1 -A gpu.png -B gdi.png [-Out diff.png]
 ```
 
 Doom runs from `wad/` (IWAD lookup, config, saves).

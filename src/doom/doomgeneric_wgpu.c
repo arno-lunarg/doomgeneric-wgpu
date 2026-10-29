@@ -1,5 +1,5 @@
 // doomgeneric platform backend: Win32 window, keyboard, timer.
-// Frames are blitted with GDI for now. Tutorial step 2 replaces DG_DrawFrame's blit with WebGPU.
+// Frames go through WebGPU (tutorial step 2: tutorial/step2.html). -gdi keeps the GDI blit as a pixel reference.
 
 #include <ctype.h>
 #include <stdio.h>
@@ -10,7 +10,9 @@
 
 #include "doomgeneric.h"
 #include "doomkeys.h"
+#include "m_argv.h"
 
+#include "gpu.h"
 #include "platform_win32.h"
 
 // Doom ran 320x200 on 4:3 CRTs: pixels are 20% taller than wide.
@@ -24,6 +26,11 @@ static unsigned int   s_keyQueueRead;
 
 static LARGE_INTEGER s_timerFrequency;
 static LARGE_INTEGER s_timerStart;
+
+static bool s_useGdi;  // -gdi: CPU blit, reference image for the GPU path
+static Gpu  s_gpu;
+
+// TODO(§2, §4) Frame texture, view, sampler, bind group, pipeline.
 
 static unsigned char ConvertToDoomKey(unsigned int vk)
 {
@@ -59,7 +66,25 @@ static void OnKey(bool pressed, unsigned int vk)
     s_keyQueueWrite             = (s_keyQueueWrite + 1) % KEYQUEUE_SIZE;
 }
 
-// Largest DISPLAY_ASPECT rect centered in the client area, black bars around it.
+// Largest DISPLAY_ASPECT rect centered in the client area. GDI blit target, GPU viewport.
+// e.g. 1280x720 client -> x=160 y=0 w=960 h=720.
+static void LetterboxRect(int* x, int* y, int* w, int* h)
+{
+    int clientW = (int)g_platform.width;
+    int clientH = (int)g_platform.height;
+
+    *w = clientW;
+    *h = (int)(clientW / DISPLAY_ASPECT);
+    if (*h > clientH)
+    {
+        *h = clientH;
+        *w = (int)(clientH * DISPLAY_ASPECT);
+    }
+    *x = (clientW - *w) / 2;
+    *y = (clientH - *h) / 2;
+}
+
+// Black bars around the letterbox rect.
 static void BlitGdi(void)
 {
     HWND hwnd = g_platform.hwnd;
@@ -67,15 +92,8 @@ static void BlitGdi(void)
 
     int clientW = (int)g_platform.width;
     int clientH = (int)g_platform.height;
-    int w       = clientW;
-    int h       = (int)(clientW / DISPLAY_ASPECT);
-    if (h > clientH)
-    {
-        h = clientH;
-        w = (int)(clientH * DISPLAY_ASPECT);
-    }
-    int x = (clientW - w) / 2;
-    int y = (clientH - h) / 2;
+    int x, y, w, h;
+    LetterboxRect(&x, &y, &w, &h);
 
     PatBlt(hdc, 0, 0, x, clientH, BLACKNESS);
     PatBlt(hdc, x + w, 0, clientW - x - w, clientH, BLACKNESS);
@@ -98,6 +116,39 @@ static void BlitGdi(void)
     ReleaseDC(hwnd, hdc);
 }
 
+// -vulkan / -d3d12 / -d3d11 pick the Dawn backend. None: Dawn's choice (D3D12).
+static WGPUBackendType ParseBackend(void)
+{
+    if (M_CheckParm("-vulkan"))
+        return WGPUBackendType_Vulkan;
+    if (M_CheckParm("-d3d12"))
+        return WGPUBackendType_D3D12;
+    if (M_CheckParm("-d3d11"))
+        return WGPUBackendType_D3D11;
+    return WGPUBackendType_Undefined;
+}
+
+static void CreateFrameResources(void)
+{
+    // TODO(§2) Frame texture and its view.
+    // TODO(§4) Sampler, bind group layout, pipeline layout, pipeline, bind group.
+}
+
+// Returns false while unimplemented: DG_DrawFrame then falls back to GDI.
+static bool DrawGpu(void)
+{
+    // TODO(§1) Gpu_BeginFrame, clear pass, Gpu_EndFrame.
+    // TODO(§3) Upload DG_ScreenBuffer.
+    // TODO(§5) Viewport, pipeline, bind group, draw.
+    return false;
+}
+
+// Registered with atexit: Doom leaves through exit() from several places.
+static void ShutdownGpu(void)
+{
+    // TODO(§1, §5) Release what CreateFrameResources made, then Gpu_Shutdown.
+}
+
 void DG_Init(void)
 {
     // 3x integer scale of the 4:3 display size (320x240).
@@ -110,6 +161,14 @@ void DG_Init(void)
 
     QueryPerformanceFrequency(&s_timerFrequency);
     QueryPerformanceCounter(&s_timerStart);
+
+    s_useGdi = M_CheckParm("-gdi") > 0;
+    if (s_useGdi)
+        return;
+
+    // TODO(§1) Gpu_Init on g_platform's window with ParseBackend(), atexit(ShutdownGpu).
+
+    CreateFrameResources();
 }
 
 void DG_DrawFrame(void)
@@ -120,8 +179,10 @@ void DG_DrawFrame(void)
     if (g_platform.width == 0 || g_platform.height == 0)
         return;
 
-    // Step 2: replace with a WebGPU texture upload + fullscreen draw.
-    BlitGdi();
+    // TODO(§1) Gpu_Resize when g_platform.resized.
+
+    if (s_useGdi || !DrawGpu())
+        BlitGdi();
 }
 
 void DG_SleepMs(uint32_t ms)

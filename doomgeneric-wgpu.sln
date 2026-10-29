@@ -15,6 +15,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		props\Common.props = props\Common.props
 		props\Dawn.props = props\Dawn.props
 		tutorial\step1.html = tutorial\step1.html
+		tutorial\step2.html = tutorial\step2.html
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shaders", "shaders", "{5A458A69-F5BE-4148-95AD-39B691B75C94}"
